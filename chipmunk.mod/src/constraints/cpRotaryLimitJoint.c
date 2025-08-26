@@ -1,4 +1,4 @@
-/* Copyright (c) 2007 Scott Lembcke
+/* Copyright (c) 2013 Scott Lembcke and Howling Moon Software
  * 
  * Permission is hereby granted, free of charge, to any person obtaining a copy
  * of this software and associated documentation files (the "Software"), to deal
@@ -19,13 +19,10 @@
  * SOFTWARE.
  */
 
-#include <stdlib.h>
-
-#include "../chipmunk.h"
-#include "util.h"
+#include "chipmunk/chipmunk_private.h"
 
 static void
-preStep(cpRotaryLimitJoint *joint, cpFloat dt, cpFloat dt_inv)
+preStep(cpRotaryLimitJoint *joint, cpFloat dt)
 {
 	cpBody *a = joint->constraint.a;
 	cpBody *b = joint->constraint.b;
@@ -43,22 +40,25 @@ preStep(cpRotaryLimitJoint *joint, cpFloat dt, cpFloat dt_inv)
 	
 	// calculate bias velocity
 	cpFloat maxBias = joint->constraint.maxBias;
-	joint->bias = cpfclamp(-joint->constraint.biasCoef*dt_inv*(pdist), -maxBias, maxBias);
-	
-	// compute max impulse
-	joint->jMax = J_MAX(joint, dt);
+	joint->bias = cpfclamp(-bias_coef(joint->constraint.errorBias, dt)*pdist/dt, -maxBias, maxBias);
 
 	// If the bias is 0, the joint is not at a limit. Reset the impulse.
-	if(!joint->bias)
-		joint->jAcc = 0.0f;
-
-	// apply joint torque
-	a->w -= joint->jAcc*a->i_inv;
-	b->w += joint->jAcc*b->i_inv;
+	if(!joint->bias) joint->jAcc = 0.0f;
 }
 
 static void
-applyImpulse(cpRotaryLimitJoint *joint)
+applyCachedImpulse(cpRotaryLimitJoint *joint, cpFloat dt_coef)
+{
+	cpBody *a = joint->constraint.a;
+	cpBody *b = joint->constraint.b;
+	
+	cpFloat j = joint->jAcc*dt_coef;
+	a->w -= j*a->i_inv;
+	b->w += j*b->i_inv;
+}
+
+static void
+applyImpulse(cpRotaryLimitJoint *joint, cpFloat dt)
 {
 	if(!joint->bias) return; // early exit
 
@@ -68,13 +68,15 @@ applyImpulse(cpRotaryLimitJoint *joint)
 	// compute relative rotational velocity
 	cpFloat wr = b->w - a->w;
 	
+	cpFloat jMax = joint->constraint.maxForce*dt;
+	
 	// compute normal impulse	
 	cpFloat j = -(joint->bias + wr)*joint->iSum;
 	cpFloat jOld = joint->jAcc;
 	if(joint->bias < 0.0f){
-		joint->jAcc = cpfclamp(jOld + j, 0.0f, joint->jMax);
+		joint->jAcc = cpfclamp(jOld + j, 0.0f, jMax);
 	} else {
-		joint->jAcc = cpfclamp(jOld + j, -joint->jMax, 0.0f);
+		joint->jAcc = cpfclamp(jOld + j, -jMax, 0.0f);
 	}
 	j = joint->jAcc - jOld;
 	
@@ -90,16 +92,16 @@ getImpulse(cpRotaryLimitJoint *joint)
 }
 
 static const cpConstraintClass klass = {
-	(cpConstraintPreStepFunction)preStep,
-	(cpConstraintApplyImpulseFunction)applyImpulse,
-	(cpConstraintGetImpulseFunction)getImpulse,
+	(cpConstraintPreStepImpl)preStep,
+	(cpConstraintApplyCachedImpulseImpl)applyCachedImpulse,
+	(cpConstraintApplyImpulseImpl)applyImpulse,
+	(cpConstraintGetImpulseImpl)getImpulse,
 };
-CP_DefineClassGetter(cpRotaryLimitJoint)
 
 cpRotaryLimitJoint *
 cpRotaryLimitJointAlloc(void)
 {
-	return (cpRotaryLimitJoint *)cpmalloc(sizeof(cpRotaryLimitJoint));
+	return (cpRotaryLimitJoint *)cpcalloc(1, sizeof(cpRotaryLimitJoint));
 }
 
 cpRotaryLimitJoint *
@@ -119,4 +121,40 @@ cpConstraint *
 cpRotaryLimitJointNew(cpBody *a, cpBody *b, cpFloat min, cpFloat max)
 {
 	return (cpConstraint *)cpRotaryLimitJointInit(cpRotaryLimitJointAlloc(), a, b, min, max);
+}
+
+cpBool
+cpConstraintIsRotaryLimitJoint(const cpConstraint *constraint)
+{
+	return (constraint->klass == &klass);
+}
+
+cpFloat
+cpRotaryLimitJointGetMin(const cpConstraint *constraint)
+{
+	cpAssertHard(cpConstraintIsRotaryLimitJoint(constraint), "Constraint is not a rotary limit joint.");
+	return ((cpRotaryLimitJoint *)constraint)->min;
+}
+
+void
+cpRotaryLimitJointSetMin(cpConstraint *constraint, cpFloat min)
+{
+	cpAssertHard(cpConstraintIsRotaryLimitJoint(constraint), "Constraint is not a rotary limit joint.");
+	cpConstraintActivateBodies(constraint);
+	((cpRotaryLimitJoint *)constraint)->min = min;
+}
+
+cpFloat
+cpRotaryLimitJointGetMax(const cpConstraint *constraint)
+{
+	cpAssertHard(cpConstraintIsRotaryLimitJoint(constraint), "Constraint is not a rotary limit joint.");
+	return ((cpRotaryLimitJoint *)constraint)->max;
+}
+
+void
+cpRotaryLimitJointSetMax(cpConstraint *constraint, cpFloat max)
+{
+	cpAssertHard(cpConstraintIsRotaryLimitJoint(constraint), "Constraint is not a rotary limit joint.");
+	cpConstraintActivateBodies(constraint);
+	((cpRotaryLimitJoint *)constraint)->max = max;
 }

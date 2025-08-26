@@ -1,4 +1,4 @@
-/* Copyright (c) 2007 Scott Lembcke
+/* Copyright (c) 2013 Scott Lembcke and Howling Moon Software
  * 
  * Permission is hereby granted, free of charge, to any person obtaining a copy
  * of this software and associated documentation files (the "Software"), to deal
@@ -19,27 +19,24 @@
  * SOFTWARE.
  */
 
-#include <stdlib.h>
-
-#include "../chipmunk.h"
-#include "util.h"
+#include "chipmunk/chipmunk_private.h"
 
 static void
-preStep(cpGrooveJoint *joint, cpFloat dt, cpFloat dt_inv)
+preStep(cpGrooveJoint *joint, cpFloat dt)
 {
 	cpBody *a = joint->constraint.a;
 	cpBody *b = joint->constraint.b;
 	
 	// calculate endpoints in worldspace
-	cpVect ta = cpBodyLocal2World(a, joint->grv_a);
-	cpVect tb = cpBodyLocal2World(a, joint->grv_b);
+	cpVect ta = cpTransformPoint(a->transform, joint->grv_a);
+	cpVect tb = cpTransformPoint(a->transform, joint->grv_b);
 
 	// calculate axis
-	cpVect n = cpvrotate(joint->grv_n, a->rot);
+	cpVect n = cpTransformVect(a->transform, joint->grv_n);
 	cpFloat d = cpvdot(ta, n);
 	
 	joint->grv_tn = n;
-	joint->r2 = cpvrotate(joint->anchr2, b->rot);
+	joint->r2 = cpTransformVect(b->transform, cpvsub(joint->anchorB, b->cog));
 	
 	// calculate tangential distance along the axis of r2
 	cpFloat td = cpvcross(cpvadd(b->p, joint->r2), n);
@@ -56,28 +53,31 @@ preStep(cpGrooveJoint *joint, cpFloat dt, cpFloat dt_inv)
 	}
 	
 	// Calculate mass tensor
-	k_tensor(a, b, joint->r1, joint->r2, &joint->k1, &joint->k2);	
-	
-	// compute max impulse
-	joint->jMaxLen = J_MAX(joint, dt);
+	joint->k = k_tensor(a, b, joint->r1, joint->r2);
 	
 	// calculate bias velocity
 	cpVect delta = cpvsub(cpvadd(b->p, joint->r2), cpvadd(a->p, joint->r1));
-	joint->bias = cpvclamp(cpvmult(delta, -joint->constraint.biasCoef*dt_inv), joint->constraint.maxBias);
-	
-	// apply accumulated impulse
-	apply_impulses(a, b, joint->r1, joint->r2, joint->jAcc);
-}
-
-static inline cpVect
-grooveConstrain(cpGrooveJoint *joint, cpVect j){
-	cpVect n = joint->grv_tn;
-	cpVect jClamp = (joint->clamp*cpvcross(j, n) > 0.0f) ? j : cpvproject(j, n);
-	return cpvclamp(jClamp, joint->jMaxLen);
+	joint->bias = cpvclamp(cpvmult(delta, -bias_coef(joint->constraint.errorBias, dt)/dt), joint->constraint.maxBias);
 }
 
 static void
-applyImpulse(cpGrooveJoint *joint)
+applyCachedImpulse(cpGrooveJoint *joint, cpFloat dt_coef)
+{
+	cpBody *a = joint->constraint.a;
+	cpBody *b = joint->constraint.b;
+		
+	apply_impulses(a, b, joint->r1, joint->r2, cpvmult(joint->jAcc, dt_coef));
+}
+
+static inline cpVect
+grooveConstrain(cpGrooveJoint *joint, cpVect j, cpFloat dt){
+	cpVect n = joint->grv_tn;
+	cpVect jClamp = (joint->clamp*cpvcross(j, n) > 0.0f) ? j : cpvproject(j, n);
+	return cpvclamp(jClamp, joint->constraint.maxForce*dt);
+}
+
+static void
+applyImpulse(cpGrooveJoint *joint, cpFloat dt)
 {
 	cpBody *a = joint->constraint.a;
 	cpBody *b = joint->constraint.b;
@@ -88,9 +88,9 @@ applyImpulse(cpGrooveJoint *joint)
 	// compute impulse
 	cpVect vr = relative_velocity(a, b, r1, r2);
 
-	cpVect j = mult_k(cpvsub(joint->bias, vr), joint->k1, joint->k2);
+	cpVect j = cpMat2x2Transform(joint->k, cpvsub(joint->bias, vr));
 	cpVect jOld = joint->jAcc;
-	joint->jAcc = grooveConstrain(joint, cpvadd(jOld, j));
+	joint->jAcc = grooveConstrain(joint, cpvadd(jOld, j), dt);
 	j = cpvsub(joint->jAcc, jOld);
 	
 	// apply impulse
@@ -104,27 +104,27 @@ getImpulse(cpGrooveJoint *joint)
 }
 
 static const cpConstraintClass klass = {
-	(cpConstraintPreStepFunction)preStep,
-	(cpConstraintApplyImpulseFunction)applyImpulse,
-	(cpConstraintGetImpulseFunction)getImpulse,
+	(cpConstraintPreStepImpl)preStep,
+	(cpConstraintApplyCachedImpulseImpl)applyCachedImpulse,
+	(cpConstraintApplyImpulseImpl)applyImpulse,
+	(cpConstraintGetImpulseImpl)getImpulse,
 };
-CP_DefineClassGetter(cpGrooveJoint)
 
 cpGrooveJoint *
 cpGrooveJointAlloc(void)
 {
-	return (cpGrooveJoint *)cpmalloc(sizeof(cpGrooveJoint));
+	return (cpGrooveJoint *)cpcalloc(1, sizeof(cpGrooveJoint));
 }
 
 cpGrooveJoint *
-cpGrooveJointInit(cpGrooveJoint *joint, cpBody *a, cpBody *b, cpVect groove_a, cpVect groove_b, cpVect anchr2)
+cpGrooveJointInit(cpGrooveJoint *joint, cpBody *a, cpBody *b, cpVect groove_a, cpVect groove_b, cpVect anchorB)
 {
 	cpConstraintInit((cpConstraint *)joint, &klass, a, b);
 	
 	joint->grv_a = groove_a;
 	joint->grv_b = groove_b;
 	joint->grv_n = cpvperp(cpvnormalize(cpvsub(groove_b, groove_a)));
-	joint->anchr2 = anchr2;
+	joint->anchorB = anchorB;
 	
 	joint->jAcc = cpvzero;
 	
@@ -132,7 +132,66 @@ cpGrooveJointInit(cpGrooveJoint *joint, cpBody *a, cpBody *b, cpVect groove_a, c
 }
 
 cpConstraint *
-cpGrooveJointNew(cpBody *a, cpBody *b, cpVect groove_a, cpVect groove_b, cpVect anchr2)
+cpGrooveJointNew(cpBody *a, cpBody *b, cpVect groove_a, cpVect groove_b, cpVect anchorB)
 {
-	return (cpConstraint *)cpGrooveJointInit(cpGrooveJointAlloc(), a, b, groove_a, groove_b, anchr2);
+	return (cpConstraint *)cpGrooveJointInit(cpGrooveJointAlloc(), a, b, groove_a, groove_b, anchorB);
+}
+
+cpBool
+cpConstraintIsGrooveJoint(const cpConstraint *constraint)
+{
+	return (constraint->klass == &klass);
+}
+
+cpVect
+cpGrooveJointGetGrooveA(const cpConstraint *constraint)
+{
+	cpAssertHard(cpConstraintIsGrooveJoint(constraint), "Constraint is not a groove joint.");
+	return ((cpGrooveJoint *)constraint)->grv_a;
+}
+
+void
+cpGrooveJointSetGrooveA(cpConstraint *constraint, cpVect value)
+{
+	cpAssertHard(cpConstraintIsGrooveJoint(constraint), "Constraint is not a groove joint.");
+	cpGrooveJoint *g = (cpGrooveJoint *)constraint;
+	
+	g->grv_a = value;
+	g->grv_n = cpvperp(cpvnormalize(cpvsub(g->grv_b, value)));
+	
+	cpConstraintActivateBodies(constraint);
+}
+
+cpVect
+cpGrooveJointGetGrooveB(const cpConstraint *constraint)
+{
+	cpAssertHard(cpConstraintIsGrooveJoint(constraint), "Constraint is not a groove joint.");
+	return ((cpGrooveJoint *)constraint)->grv_b;
+}
+
+void
+cpGrooveJointSetGrooveB(cpConstraint *constraint, cpVect value)
+{
+	cpAssertHard(cpConstraintIsGrooveJoint(constraint), "Constraint is not a groove joint.");
+	cpGrooveJoint *g = (cpGrooveJoint *)constraint;
+	
+	g->grv_b = value;
+	g->grv_n = cpvperp(cpvnormalize(cpvsub(value, g->grv_a)));
+	
+	cpConstraintActivateBodies(constraint);
+}
+
+cpVect
+cpGrooveJointGetAnchorB(const cpConstraint *constraint)
+{
+	cpAssertHard(cpConstraintIsGrooveJoint(constraint), "Constraint is not a groove joint.");
+	return ((cpGrooveJoint *)constraint)->anchorB;
+}
+
+void
+cpGrooveJointSetAnchorB(cpConstraint *constraint, cpVect anchorB)
+{
+	cpAssertHard(cpConstraintIsGrooveJoint(constraint), "Constraint is not a groove joint.");
+	cpConstraintActivateBodies(constraint);
+	((cpGrooveJoint *)constraint)->anchorB = anchorB;
 }

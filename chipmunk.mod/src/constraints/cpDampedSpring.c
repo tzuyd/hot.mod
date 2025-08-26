@@ -1,4 +1,4 @@
-/* Copyright (c) 2007 Scott Lembcke
+/* Copyright (c) 2013 Scott Lembcke and Howling Moon Software
  * 
  * Permission is hereby granted, free of charge, to any person obtaining a copy
  * of this software and associated documentation files (the "Software"), to deal
@@ -19,11 +19,7 @@
  * SOFTWARE.
  */
 
-#include <stdlib.h>
-#include <math.h>
-
-#include "../chipmunk.h"
-#include "util.h"
+#include "chipmunk/chipmunk_private.h"
 
 static cpFloat
 defaultSpringForce(cpDampedSpring *spring, cpFloat dist){
@@ -31,31 +27,35 @@ defaultSpringForce(cpDampedSpring *spring, cpFloat dist){
 }
 
 static void
-preStep(cpDampedSpring *spring, cpFloat dt, cpFloat dt_inv)
+preStep(cpDampedSpring *spring, cpFloat dt)
 {
 	cpBody *a = spring->constraint.a;
 	cpBody *b = spring->constraint.b;
 	
-	spring->r1 = cpvrotate(spring->anchr1, a->rot);
-	spring->r2 = cpvrotate(spring->anchr2, b->rot);
+	spring->r1 = cpTransformVect(a->transform, cpvsub(spring->anchorA, a->cog));
+	spring->r2 = cpTransformVect(b->transform, cpvsub(spring->anchorB, b->cog));
 	
 	cpVect delta = cpvsub(cpvadd(b->p, spring->r2), cpvadd(a->p, spring->r1));
 	cpFloat dist = cpvlength(delta);
 	spring->n = cpvmult(delta, 1.0f/(dist ? dist : INFINITY));
 	
-	// calculate mass normal
-	spring->nMass = 1.0f/k_scalar(a, b, spring->r1, spring->r2, spring->n);
-
-	spring->dt = dt;
+	cpFloat k = k_scalar(a, b, spring->r1, spring->r2, spring->n);
+	cpAssertSoft(k != 0.0, "Unsolvable spring.");
+	spring->nMass = 1.0f/k;
+	
 	spring->target_vrn = 0.0f;
+	spring->v_coef = 1.0f - cpfexp(-spring->damping*dt*k);
 
 	// apply spring force
 	cpFloat f_spring = spring->springForceFunc((cpConstraint *)spring, dist);
-	apply_impulses(a, b, spring->r1, spring->r2, cpvmult(spring->n, f_spring*dt));
+	cpFloat j_spring = spring->jAcc = f_spring*dt;
+	apply_impulses(a, b, spring->r1, spring->r2, cpvmult(spring->n, j_spring));
 }
 
+static void applyCachedImpulse(cpDampedSpring *spring, cpFloat dt_coef){}
+
 static void
-applyImpulse(cpDampedSpring *spring)
+applyImpulse(cpDampedSpring *spring, cpFloat dt)
 {
 	cpBody *a = spring->constraint.a;
 	cpBody *b = spring->constraint.b;
@@ -65,53 +65,152 @@ applyImpulse(cpDampedSpring *spring)
 	cpVect r2 = spring->r2;
 
 	// compute relative velocity
-	cpFloat vrn = normal_relative_velocity(a, b, r1, r2, n) - spring->target_vrn;
+	cpFloat vrn = normal_relative_velocity(a, b, r1, r2, n);
 	
 	// compute velocity loss from drag
-	// not 100% certain this is derived correctly, though it makes sense
-	cpFloat v_damp = -vrn*(1.0f - cpfexp(-spring->damping*spring->dt/spring->nMass));
+	cpFloat v_damp = (spring->target_vrn - vrn)*spring->v_coef;
 	spring->target_vrn = vrn + v_damp;
 	
-	apply_impulses(a, b, spring->r1, spring->r2, cpvmult(spring->n, v_damp*spring->nMass));
+	cpFloat j_damp = v_damp*spring->nMass;
+	spring->jAcc += j_damp;
+	apply_impulses(a, b, spring->r1, spring->r2, cpvmult(spring->n, j_damp));
 }
 
 static cpFloat
-getImpulse(cpConstraint *constraint)
+getImpulse(cpDampedSpring *spring)
 {
-	return 0.0f;
+	return spring->jAcc;
 }
 
 static const cpConstraintClass klass = {
-	(cpConstraintPreStepFunction)preStep,
-	(cpConstraintApplyImpulseFunction)applyImpulse,
-	(cpConstraintGetImpulseFunction)getImpulse,
+	(cpConstraintPreStepImpl)preStep,
+	(cpConstraintApplyCachedImpulseImpl)applyCachedImpulse,
+	(cpConstraintApplyImpulseImpl)applyImpulse,
+	(cpConstraintGetImpulseImpl)getImpulse,
 };
-CP_DefineClassGetter(cpDampedSpring)
 
 cpDampedSpring *
 cpDampedSpringAlloc(void)
 {
-	return (cpDampedSpring *)cpmalloc(sizeof(cpDampedSpring));
+	return (cpDampedSpring *)cpcalloc(1, sizeof(cpDampedSpring));
 }
 
 cpDampedSpring *
-cpDampedSpringInit(cpDampedSpring *spring, cpBody *a, cpBody *b, cpVect anchr1, cpVect anchr2, cpFloat restLength, cpFloat stiffness, cpFloat damping)
+cpDampedSpringInit(cpDampedSpring *spring, cpBody *a, cpBody *b, cpVect anchorA, cpVect anchorB, cpFloat restLength, cpFloat stiffness, cpFloat damping)
 {
-	cpConstraintInit((cpConstraint *)spring, cpDampedSpringGetClass(), a, b);
+	cpConstraintInit((cpConstraint *)spring, &klass, a, b);
 	
-	spring->anchr1 = anchr1;
-	spring->anchr2 = anchr2;
+	spring->anchorA = anchorA;
+	spring->anchorB = anchorB;
 	
 	spring->restLength = restLength;
 	spring->stiffness = stiffness;
 	spring->damping = damping;
 	spring->springForceFunc = (cpDampedSpringForceFunc)defaultSpringForce;
 	
+	spring->jAcc = 0.0f;
+	
 	return spring;
 }
 
 cpConstraint *
-cpDampedSpringNew(cpBody *a, cpBody *b, cpVect anchr1, cpVect anchr2, cpFloat restLength, cpFloat stiffness, cpFloat damping)
+cpDampedSpringNew(cpBody *a, cpBody *b, cpVect anchorA, cpVect anchorB, cpFloat restLength, cpFloat stiffness, cpFloat damping)
 {
-	return (cpConstraint *)cpDampedSpringInit(cpDampedSpringAlloc(), a, b, anchr1, anchr2, restLength, stiffness, damping);
+	return (cpConstraint *)cpDampedSpringInit(cpDampedSpringAlloc(), a, b, anchorA, anchorB, restLength, stiffness, damping);
+}
+
+cpBool
+cpConstraintIsDampedSpring(const cpConstraint *constraint)
+{
+	return (constraint->klass == &klass);
+}
+
+cpVect
+cpDampedSpringGetAnchorA(const cpConstraint *constraint)
+{
+	cpAssertHard(cpConstraintIsDampedSpring(constraint), "Constraint is not a damped spring.");
+	return ((cpDampedSpring *)constraint)->anchorA;
+}
+
+void
+cpDampedSpringSetAnchorA(cpConstraint *constraint, cpVect anchorA)
+{
+	cpAssertHard(cpConstraintIsDampedSpring(constraint), "Constraint is not a damped spring.");
+	cpConstraintActivateBodies(constraint);
+	((cpDampedSpring *)constraint)->anchorA = anchorA;
+}
+
+cpVect
+cpDampedSpringGetAnchorB(const cpConstraint *constraint)
+{
+	cpAssertHard(cpConstraintIsDampedSpring(constraint), "Constraint is not a damped spring.");
+	return ((cpDampedSpring *)constraint)->anchorB;
+}
+
+void
+cpDampedSpringSetAnchorB(cpConstraint *constraint, cpVect anchorB)
+{
+	cpAssertHard(cpConstraintIsDampedSpring(constraint), "Constraint is not a damped spring.");
+	cpConstraintActivateBodies(constraint);
+	((cpDampedSpring *)constraint)->anchorB = anchorB;
+}
+
+cpFloat
+cpDampedSpringGetRestLength(const cpConstraint *constraint)
+{
+	cpAssertHard(cpConstraintIsDampedSpring(constraint), "Constraint is not a damped spring.");
+	return ((cpDampedSpring *)constraint)->restLength;
+}
+
+void
+cpDampedSpringSetRestLength(cpConstraint *constraint, cpFloat restLength)
+{
+	cpAssertHard(cpConstraintIsDampedSpring(constraint), "Constraint is not a damped spring.");
+	cpConstraintActivateBodies(constraint);
+	((cpDampedSpring *)constraint)->restLength = restLength;
+}
+
+cpFloat
+cpDampedSpringGetStiffness(const cpConstraint *constraint)
+{
+	cpAssertHard(cpConstraintIsDampedSpring(constraint), "Constraint is not a damped spring.");
+	return ((cpDampedSpring *)constraint)->stiffness;
+}
+
+void
+cpDampedSpringSetStiffness(cpConstraint *constraint, cpFloat stiffness)
+{
+	cpAssertHard(cpConstraintIsDampedSpring(constraint), "Constraint is not a damped spring.");
+	cpConstraintActivateBodies(constraint);
+	((cpDampedSpring *)constraint)->stiffness = stiffness;
+}
+
+cpFloat
+cpDampedSpringGetDamping(const cpConstraint *constraint)
+{
+	cpAssertHard(cpConstraintIsDampedSpring(constraint), "Constraint is not a damped spring.");
+	return ((cpDampedSpring *)constraint)->damping;
+}
+
+void
+cpDampedSpringSetDamping(cpConstraint *constraint, cpFloat damping)
+{
+	cpAssertHard(cpConstraintIsDampedSpring(constraint), "Constraint is not a damped spring.");
+	cpConstraintActivateBodies(constraint);
+	((cpDampedSpring *)constraint)->damping = damping;
+}
+
+cpDampedSpringForceFunc
+cpDampedSpringGetSpringForceFunc(const cpConstraint *constraint)
+{
+	cpAssertHard(cpConstraintIsDampedSpring(constraint), "Constraint is not a damped spring.");
+	return ((cpDampedSpring *)constraint)->springForceFunc;
+}
+
+void
+cpDampedSpringSetSpringForceFunc(cpConstraint *constraint, cpDampedSpringForceFunc springForceFunc)
+{
+	cpAssertHard(cpConstraintIsDampedSpring(constraint), "Constraint is not a damped spring.");
+	cpConstraintActivateBodies(constraint);
+	((cpDampedSpring *)constraint)->springForceFunc = springForceFunc;
 }

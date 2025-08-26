@@ -1,4 +1,4 @@
-/* Copyright (c) 2007 Scott Lembcke
+/* Copyright (c) 2013 Scott Lembcke and Howling Moon Software
  * 
  * Permission is hereby granted, free of charge, to any person obtaining a copy
  * of this software and associated documentation files (the "Software"), to deal
@@ -19,15 +19,10 @@
  * SOFTWARE.
  */
 
-#include <stdio.h>
-#include <stdlib.h>
-#include <math.h>
-
-#include "../chipmunk.h"
-#include "util.h"
+#include "chipmunk/chipmunk_private.h"
 
 static void
-preStep(cpRatchetJoint *joint, cpFloat dt, cpFloat dt_inv)
+preStep(cpRatchetJoint *joint, cpFloat dt)
 {
 	cpBody *a = joint->constraint.a;
 	cpBody *b = joint->constraint.b;
@@ -51,22 +46,25 @@ preStep(cpRatchetJoint *joint, cpFloat dt, cpFloat dt_inv)
 	
 	// calculate bias velocity
 	cpFloat maxBias = joint->constraint.maxBias;
-	joint->bias = cpfclamp(-joint->constraint.biasCoef*dt_inv*pdist, -maxBias, maxBias);
-	
-	// compute max impulse
-	joint->jMax = J_MAX(joint, dt);
+	joint->bias = cpfclamp(-bias_coef(joint->constraint.errorBias, dt)*pdist/dt, -maxBias, maxBias);
 
 	// If the bias is 0, the joint is not at a limit. Reset the impulse.
-	if(!joint->bias)
-		joint->jAcc = 0.0f;
-
-	// apply joint torque
-	a->w -= joint->jAcc*a->i_inv;
-	b->w += joint->jAcc*b->i_inv;
+	if(!joint->bias) joint->jAcc = 0.0f;
 }
 
 static void
-applyImpulse(cpRatchetJoint *joint)
+applyCachedImpulse(cpRatchetJoint *joint, cpFloat dt_coef)
+{
+	cpBody *a = joint->constraint.a;
+	cpBody *b = joint->constraint.b;
+	
+	cpFloat j = joint->jAcc*dt_coef;
+	a->w -= j*a->i_inv;
+	b->w += j*b->i_inv;
+}
+
+static void
+applyImpulse(cpRatchetJoint *joint, cpFloat dt)
 {
 	if(!joint->bias) return; // early exit
 
@@ -77,10 +75,12 @@ applyImpulse(cpRatchetJoint *joint)
 	cpFloat wr = b->w - a->w;
 	cpFloat ratchet = joint->ratchet;
 	
+	cpFloat jMax = joint->constraint.maxForce*dt;
+	
 	// compute normal impulse	
 	cpFloat j = -(joint->bias + wr)*joint->iSum;
 	cpFloat jOld = joint->jAcc;
-	joint->jAcc = cpfclamp((jOld + j)*ratchet, 0.0f, joint->jMax*cpfabs(ratchet))/ratchet;
+	joint->jAcc = cpfclamp((jOld + j)*ratchet, 0.0f, jMax*cpfabs(ratchet))/ratchet;
 	j = joint->jAcc - jOld;
 	
 	// apply impulse
@@ -95,16 +95,16 @@ getImpulse(cpRatchetJoint *joint)
 }
 
 static const cpConstraintClass klass = {
-	(cpConstraintPreStepFunction)preStep,
-	(cpConstraintApplyImpulseFunction)applyImpulse,
-	(cpConstraintGetImpulseFunction)getImpulse,
+	(cpConstraintPreStepImpl)preStep,
+	(cpConstraintApplyCachedImpulseImpl)applyCachedImpulse,
+	(cpConstraintApplyImpulseImpl)applyImpulse,
+	(cpConstraintGetImpulseImpl)getImpulse,
 };
-CP_DefineClassGetter(cpRatchetJoint)
 
 cpRatchetJoint *
 cpRatchetJointAlloc(void)
 {
-	return (cpRatchetJoint *)cpmalloc(sizeof(cpRatchetJoint));
+	return (cpRatchetJoint *)cpcalloc(1, sizeof(cpRatchetJoint));
 }
 
 cpRatchetJoint *
@@ -116,7 +116,8 @@ cpRatchetJointInit(cpRatchetJoint *joint, cpBody *a, cpBody *b, cpFloat phase, c
 	joint->phase = phase;
 	joint->ratchet = ratchet;
 	
-	joint->angle = b->a - a->a;
+	// STATIC_BODY_CHECK
+	joint->angle = (b ? b->a : 0.0f) - (a ? a->a : 0.0f);
 	
 	return joint;
 }
@@ -125,4 +126,54 @@ cpConstraint *
 cpRatchetJointNew(cpBody *a, cpBody *b, cpFloat phase, cpFloat ratchet)
 {
 	return (cpConstraint *)cpRatchetJointInit(cpRatchetJointAlloc(), a, b, phase, ratchet);
+}
+
+cpBool
+cpConstraintIsRatchetJoint(const cpConstraint *constraint)
+{
+	return (constraint->klass == &klass);
+}
+
+cpFloat
+cpRatchetJointGetAngle(const cpConstraint *constraint)
+{
+	cpAssertHard(cpConstraintIsRatchetJoint(constraint), "Constraint is not a ratchet joint.");
+	return ((cpRatchetJoint *)constraint)->angle;
+}
+
+void
+cpRatchetJointSetAngle(cpConstraint *constraint, cpFloat angle)
+{
+	cpAssertHard(cpConstraintIsRatchetJoint(constraint), "Constraint is not a ratchet joint.");
+	cpConstraintActivateBodies(constraint);
+	((cpRatchetJoint *)constraint)->angle = angle;
+}
+
+cpFloat
+cpRatchetJointGetPhase(const cpConstraint *constraint)
+{
+	cpAssertHard(cpConstraintIsRatchetJoint(constraint), "Constraint is not a ratchet joint.");
+	return ((cpRatchetJoint *)constraint)->phase;
+}
+
+void
+cpRatchetJointSetPhase(cpConstraint *constraint, cpFloat phase)
+{
+	cpAssertHard(cpConstraintIsRatchetJoint(constraint), "Constraint is not a ratchet joint.");
+	cpConstraintActivateBodies(constraint);
+	((cpRatchetJoint *)constraint)->phase = phase;
+}
+cpFloat
+cpRatchetJointGetRatchet(const cpConstraint *constraint)
+{
+	cpAssertHard(cpConstraintIsRatchetJoint(constraint), "Constraint is not a ratchet joint.");
+	return ((cpRatchetJoint *)constraint)->ratchet;
+}
+
+void
+cpRatchetJointSetRatchet(cpConstraint *constraint, cpFloat ratchet)
+{
+	cpAssertHard(cpConstraintIsRatchetJoint(constraint), "Constraint is not a ratchet joint.");
+	cpConstraintActivateBodies(constraint);
+	((cpRatchetJoint *)constraint)->ratchet = ratchet;
 }

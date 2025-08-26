@@ -1,4 +1,4 @@
-/* Copyright (c) 2007 Scott Lembcke
+/* Copyright (c) 2013 Scott Lembcke and Howling Moon Software
  * 
  * Permission is hereby granted, free of charge, to any person obtaining a copy
  * of this software and associated documentation files (the "Software"), to deal
@@ -19,13 +19,10 @@
  * SOFTWARE.
  */
 
-#include <stdlib.h>
-
-#include "../chipmunk.h"
-#include "util.h"
+#include "chipmunk/chipmunk_private.h"
 
 static void
-preStep(cpGearJoint *joint, cpFloat dt, cpFloat dt_inv)
+preStep(cpGearJoint *joint, cpFloat dt)
 {
 	cpBody *a = joint->constraint.a;
 	cpBody *b = joint->constraint.b;
@@ -35,19 +32,22 @@ preStep(cpGearJoint *joint, cpFloat dt, cpFloat dt_inv)
 	
 	// calculate bias velocity
 	cpFloat maxBias = joint->constraint.maxBias;
-	joint->bias = cpfclamp(-joint->constraint.biasCoef*dt_inv*(b->a*joint->ratio - a->a - joint->phase), -maxBias, maxBias);
-	
-	// compute max impulse
-	joint->jMax = J_MAX(joint, dt);
+	joint->bias = cpfclamp(-bias_coef(joint->constraint.errorBias, dt)*(b->a*joint->ratio - a->a - joint->phase)/dt, -maxBias, maxBias);
+}
 
-	// apply joint torque
-	cpFloat j = joint->jAcc;
+static void
+applyCachedImpulse(cpGearJoint *joint, cpFloat dt_coef)
+{
+	cpBody *a = joint->constraint.a;
+	cpBody *b = joint->constraint.b;
+	
+	cpFloat j = joint->jAcc*dt_coef;
 	a->w -= j*a->i_inv*joint->ratio_inv;
 	b->w += j*b->i_inv;
 }
 
 static void
-applyImpulse(cpGearJoint *joint)
+applyImpulse(cpGearJoint *joint, cpFloat dt)
 {
 	cpBody *a = joint->constraint.a;
 	cpBody *b = joint->constraint.b;
@@ -55,10 +55,12 @@ applyImpulse(cpGearJoint *joint)
 	// compute relative rotational velocity
 	cpFloat wr = b->w*joint->ratio - a->w;
 	
+	cpFloat jMax = joint->constraint.maxForce*dt;
+	
 	// compute normal impulse	
 	cpFloat j = (joint->bias - wr)*joint->iSum;
 	cpFloat jOld = joint->jAcc;
-	joint->jAcc = cpfclamp(jOld + j, -joint->jMax, joint->jMax);
+	joint->jAcc = cpfclamp(jOld + j, -jMax, jMax);
 	j = joint->jAcc - jOld;
 	
 	// apply impulse
@@ -73,16 +75,16 @@ getImpulse(cpGearJoint *joint)
 }
 
 static const cpConstraintClass klass = {
-	(cpConstraintPreStepFunction)preStep,
-	(cpConstraintApplyImpulseFunction)applyImpulse,
-	(cpConstraintGetImpulseFunction)getImpulse,
+	(cpConstraintPreStepImpl)preStep,
+	(cpConstraintApplyCachedImpulseImpl)applyCachedImpulse,
+	(cpConstraintApplyImpulseImpl)applyImpulse,
+	(cpConstraintGetImpulseImpl)getImpulse,
 };
-CP_DefineClassGetter(cpGearJoint)
 
 cpGearJoint *
 cpGearJointAlloc(void)
 {
-	return (cpGearJoint *)cpmalloc(sizeof(cpGearJoint));
+	return (cpGearJoint *)cpcalloc(1, sizeof(cpGearJoint));
 }
 
 cpGearJoint *
@@ -105,10 +107,39 @@ cpGearJointNew(cpBody *a, cpBody *b, cpFloat phase, cpFloat ratio)
 	return (cpConstraint *)cpGearJointInit(cpGearJointAlloc(), a, b, phase, ratio);
 }
 
-void
-cpGearJointSetRatio(cpConstraint *constraint, cpFloat value)
+cpBool
+cpConstraintIsGearJoint(const cpConstraint *constraint)
 {
-	cpConstraintCheckCast(constraint, cpGearJointGetClass());
-	((cpGearJoint *)constraint)->ratio = value;
-	((cpGearJoint *)constraint)->ratio_inv = 1.0f/value;
+	return (constraint->klass == &klass);
+}
+
+cpFloat
+cpGearJointGetPhase(const cpConstraint *constraint)
+{
+	cpAssertHard(cpConstraintIsGearJoint(constraint), "Constraint is not a ratchet joint.");
+	return ((cpGearJoint *)constraint)->phase;
+}
+
+void
+cpGearJointSetPhase(cpConstraint *constraint, cpFloat phase)
+{
+	cpAssertHard(cpConstraintIsGearJoint(constraint), "Constraint is not a ratchet joint.");
+	cpConstraintActivateBodies(constraint);
+	((cpGearJoint *)constraint)->phase = phase;
+}
+
+cpFloat
+cpGearJointGetRatio(const cpConstraint *constraint)
+{
+	cpAssertHard(cpConstraintIsGearJoint(constraint), "Constraint is not a ratchet joint.");
+	return ((cpGearJoint *)constraint)->ratio;
+}
+
+void
+cpGearJointSetRatio(cpConstraint *constraint, cpFloat ratio)
+{
+	cpAssertHard(cpConstraintIsGearJoint(constraint), "Constraint is not a ratchet joint.");
+	cpConstraintActivateBodies(constraint);
+	((cpGearJoint *)constraint)->ratio = ratio;
+	((cpGearJoint *)constraint)->ratio_inv = 1.0f/ratio;
 }

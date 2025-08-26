@@ -1,4 +1,4 @@
-/* Copyright (c) 2007 Scott Lembcke
+/* Copyright (c) 2013 Scott Lembcke and Howling Moon Software
  * 
  * Permission is hereby granted, free of charge, to any person obtaining a copy
  * of this software and associated documentation files (the "Software"), to deal
@@ -18,7 +18,7 @@
  * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
  * SOFTWARE.
  */
- 
+
 // Used for resizing hash tables.
 // Values approximately double.
 // http://planetmath.org/encyclopedia/GoodHashTablePrimes.html
@@ -61,7 +61,7 @@ next_prime(int n)
 	int i = 0;
 	while(n > primes[i]){
 		i++;
-		assert(primes[i]); // realistically this should never happen
+		cpAssertHard(primes[i], "Tried to resize a hash table to a size greater than 1610612741 O_o"); // realistically this should never happen
 	}
 	
 	return primes[i];

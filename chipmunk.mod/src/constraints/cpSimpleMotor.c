@@ -1,4 +1,4 @@
-/* Copyright (c) 2007 Scott Lembcke
+/* Copyright (c) 2013 Scott Lembcke and Howling Moon Software
  * 
  * Permission is hereby granted, free of charge, to any person obtaining a copy
  * of this software and associated documentation files (the "Software"), to deal
@@ -19,30 +19,31 @@
  * SOFTWARE.
  */
 
-#include <stdlib.h>
-
-#include "../chipmunk.h"
-#include "util.h"
+#include "chipmunk/chipmunk_private.h"
 
 static void
-preStep(cpSimpleMotor *joint, cpFloat dt, cpFloat dt_inv)
+preStep(cpSimpleMotor *joint, cpFloat dt)
 {
 	cpBody *a = joint->constraint.a;
 	cpBody *b = joint->constraint.b;
 	
 	// calculate moment of inertia coefficient.
 	joint->iSum = 1.0f/(a->i_inv + b->i_inv);
-	
-	// compute max impulse
-	joint->jMax = J_MAX(joint, dt);
-
-	// apply joint torque
-	a->w -= joint->jAcc*a->i_inv;
-	b->w += joint->jAcc*b->i_inv;
 }
 
 static void
-applyImpulse(cpSimpleMotor *joint)
+applyCachedImpulse(cpSimpleMotor *joint, cpFloat dt_coef)
+{
+	cpBody *a = joint->constraint.a;
+	cpBody *b = joint->constraint.b;
+	
+	cpFloat j = joint->jAcc*dt_coef;
+	a->w -= j*a->i_inv;
+	b->w += j*b->i_inv;
+}
+
+static void
+applyImpulse(cpSimpleMotor *joint, cpFloat dt)
 {
 	cpBody *a = joint->constraint.a;
 	cpBody *b = joint->constraint.b;
@@ -50,10 +51,12 @@ applyImpulse(cpSimpleMotor *joint)
 	// compute relative rotational velocity
 	cpFloat wr = b->w - a->w + joint->rate;
 	
+	cpFloat jMax = joint->constraint.maxForce*dt;
+	
 	// compute normal impulse	
 	cpFloat j = -wr*joint->iSum;
 	cpFloat jOld = joint->jAcc;
-	joint->jAcc = cpfclamp(jOld + j, -joint->jMax, joint->jMax);
+	joint->jAcc = cpfclamp(jOld + j, -jMax, jMax);
 	j = joint->jAcc - jOld;
 	
 	// apply impulse
@@ -68,16 +71,16 @@ getImpulse(cpSimpleMotor *joint)
 }
 
 static const cpConstraintClass klass = {
-	(cpConstraintPreStepFunction)preStep,
-	(cpConstraintApplyImpulseFunction)applyImpulse,
-	(cpConstraintGetImpulseFunction)getImpulse,
+	(cpConstraintPreStepImpl)preStep,
+	(cpConstraintApplyCachedImpulseImpl)applyCachedImpulse,
+	(cpConstraintApplyImpulseImpl)applyImpulse,
+	(cpConstraintGetImpulseImpl)getImpulse,
 };
-CP_DefineClassGetter(cpSimpleMotor)
 
 cpSimpleMotor *
 cpSimpleMotorAlloc(void)
 {
-	return (cpSimpleMotor *)cpmalloc(sizeof(cpSimpleMotor));
+	return (cpSimpleMotor *)cpcalloc(1, sizeof(cpSimpleMotor));
 }
 
 cpSimpleMotor *
@@ -96,4 +99,25 @@ cpConstraint *
 cpSimpleMotorNew(cpBody *a, cpBody *b, cpFloat rate)
 {
 	return (cpConstraint *)cpSimpleMotorInit(cpSimpleMotorAlloc(), a, b, rate);
+}
+
+cpBool
+cpConstraintIsSimpleMotor(const cpConstraint *constraint)
+{
+	return (constraint->klass == &klass);
+}
+
+cpFloat
+cpSimpleMotorGetRate(const cpConstraint *constraint)
+{
+	cpAssertHard(cpConstraintIsSimpleMotor(constraint), "Constraint is not a SimpleMotor.");
+	return ((cpSimpleMotor *)constraint)->rate;
+}
+
+void
+cpSimpleMotorSetRate(cpConstraint *constraint, cpFloat rate)
+{
+	cpAssertHard(cpConstraintIsSimpleMotor(constraint), "Constraint is not a SimpleMotor.");
+	cpConstraintActivateBodies(constraint);
+	((cpSimpleMotor *)constraint)->rate = rate;
 }

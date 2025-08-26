@@ -1,4 +1,4 @@
-/* Copyright (c) 2007 Scott Lembcke
+/* Copyright (c) 2013 Scott Lembcke and Howling Moon Software
  * 
  * Permission is hereby granted, free of charge, to any person obtaining a copy
  * of this software and associated documentation files (the "Software"), to deal
@@ -19,36 +19,36 @@
  * SOFTWARE.
  */
 
-#include <stdlib.h>
-
-#include "../chipmunk.h"
-#include "util.h"
+#include "chipmunk/chipmunk_private.h"
 
 static void
-preStep(cpPivotJoint *joint, cpFloat dt, cpFloat dt_inv)
+preStep(cpPivotJoint *joint, cpFloat dt)
 {
 	cpBody *a = joint->constraint.a;
 	cpBody *b = joint->constraint.b;
 	
-	joint->r1 = cpvrotate(joint->anchr1, a->rot);
-	joint->r2 = cpvrotate(joint->anchr2, b->rot);
+	joint->r1 = cpTransformVect(a->transform, cpvsub(joint->anchorA, a->cog));
+	joint->r2 = cpTransformVect(b->transform, cpvsub(joint->anchorB, b->cog));
 	
 	// Calculate mass tensor
-	k_tensor(a, b, joint->r1, joint->r2, &joint->k1, &joint->k2);
-	
-	// compute max impulse
-	joint->jMaxLen = J_MAX(joint, dt);
+	joint-> k = k_tensor(a, b, joint->r1, joint->r2);
 	
 	// calculate bias velocity
 	cpVect delta = cpvsub(cpvadd(b->p, joint->r2), cpvadd(a->p, joint->r1));
-	joint->bias = cpvclamp(cpvmult(delta, -joint->constraint.biasCoef*dt_inv), joint->constraint.maxBias);
-	
-	// apply accumulated impulse
-	apply_impulses(a, b, joint->r1, joint->r2, joint->jAcc);
+	joint->bias = cpvclamp(cpvmult(delta, -bias_coef(joint->constraint.errorBias, dt)/dt), joint->constraint.maxBias);
 }
 
 static void
-applyImpulse(cpPivotJoint *joint)
+applyCachedImpulse(cpPivotJoint *joint, cpFloat dt_coef)
+{
+	cpBody *a = joint->constraint.a;
+	cpBody *b = joint->constraint.b;
+	
+	apply_impulses(a, b, joint->r1, joint->r2, cpvmult(joint->jAcc, dt_coef));
+}
+
+static void
+applyImpulse(cpPivotJoint *joint, cpFloat dt)
 {
 	cpBody *a = joint->constraint.a;
 	cpBody *b = joint->constraint.b;
@@ -60,9 +60,9 @@ applyImpulse(cpPivotJoint *joint)
 	cpVect vr = relative_velocity(a, b, r1, r2);
 	
 	// compute normal impulse
-	cpVect j = mult_k(cpvsub(joint->bias, vr), joint->k1, joint->k2);
+	cpVect j = cpMat2x2Transform(joint->k, cpvsub(joint->bias, vr));
 	cpVect jOld = joint->jAcc;
-	joint->jAcc = cpvclamp(cpvadd(joint->jAcc, j), joint->jMaxLen);
+	joint->jAcc = cpvclamp(cpvadd(joint->jAcc, j), joint->constraint.maxForce*dt);
 	j = cpvsub(joint->jAcc, jOld);
 	
 	// apply impulse
@@ -76,27 +76,25 @@ getImpulse(cpConstraint *joint)
 }
 
 static const cpConstraintClass klass = {
-	(cpConstraintPreStepFunction)preStep,
-	(cpConstraintApplyImpulseFunction)applyImpulse,
-	(cpConstraintGetImpulseFunction)getImpulse,
+	(cpConstraintPreStepImpl)preStep,
+	(cpConstraintApplyCachedImpulseImpl)applyCachedImpulse,
+	(cpConstraintApplyImpulseImpl)applyImpulse,
+	(cpConstraintGetImpulseImpl)getImpulse,
 };
-CP_DefineClassGetter(cpPivotJoint)
 
 cpPivotJoint *
 cpPivotJointAlloc(void)
 {
-	return (cpPivotJoint *)cpmalloc(sizeof(cpPivotJoint));
+	return (cpPivotJoint *)cpcalloc(1, sizeof(cpPivotJoint));
 }
 
 cpPivotJoint *
-cpPivotJointInit(cpPivotJoint *joint, cpBody *a, cpBody *b, cpVect anchr1, cpVect anchr2)
+cpPivotJointInit(cpPivotJoint *joint, cpBody *a, cpBody *b, cpVect anchorA, cpVect anchorB)
 {
 	cpConstraintInit((cpConstraint *)joint, &klass, a, b);
 	
-//	joint->anchr1 = cpvunrotate(cpvsub(pivot, a->p), a->rot);
-//	joint->anchr2 = cpvunrotate(cpvsub(pivot, b->p), b->rot);
-	joint->anchr1 = anchr1;
-	joint->anchr2 = anchr2;
+	joint->anchorA = anchorA;
+	joint->anchorB = anchorB;
 	
 	joint->jAcc = cpvzero;
 	
@@ -104,13 +102,51 @@ cpPivotJointInit(cpPivotJoint *joint, cpBody *a, cpBody *b, cpVect anchr1, cpVec
 }
 
 cpConstraint *
-cpPivotJointNew2(cpBody *a, cpBody *b, cpVect anchr1, cpVect anchr2)
+cpPivotJointNew2(cpBody *a, cpBody *b, cpVect anchorA, cpVect anchorB)
 {
-	return (cpConstraint *)cpPivotJointInit(cpPivotJointAlloc(), a, b, anchr1, anchr2);
+	return (cpConstraint *)cpPivotJointInit(cpPivotJointAlloc(), a, b, anchorA, anchorB);
 }
 
 cpConstraint *
 cpPivotJointNew(cpBody *a, cpBody *b, cpVect pivot)
 {
-	return cpPivotJointNew2(a, b, cpBodyWorld2Local(a, pivot), cpBodyWorld2Local(b, pivot));
+	cpVect anchorA = (a ? cpBodyWorldToLocal(a, pivot) : pivot);
+	cpVect anchorB = (b ? cpBodyWorldToLocal(b, pivot) : pivot);
+	return cpPivotJointNew2(a, b, anchorA, anchorB);
+}
+
+cpBool
+cpConstraintIsPivotJoint(const cpConstraint *constraint)
+{
+	return (constraint->klass == &klass);
+}
+
+cpVect
+cpPivotJointGetAnchorA(const cpConstraint *constraint)
+{
+	cpAssertHard(cpConstraintIsPivotJoint(constraint), "Constraint is not a pivot joint.");
+	return ((cpPivotJoint *)constraint)->anchorA;
+}
+
+void
+cpPivotJointSetAnchorA(cpConstraint *constraint, cpVect anchorA)
+{
+	cpAssertHard(cpConstraintIsPivotJoint(constraint), "Constraint is not a pivot joint.");
+	cpConstraintActivateBodies(constraint);
+	((cpPivotJoint *)constraint)->anchorA = anchorA;
+}
+
+cpVect
+cpPivotJointGetAnchorB(const cpConstraint *constraint)
+{
+	cpAssertHard(cpConstraintIsPivotJoint(constraint), "Constraint is not a pivot joint.");
+	return ((cpPivotJoint *)constraint)->anchorB;
+}
+
+void
+cpPivotJointSetAnchorB(cpConstraint *constraint, cpVect anchorB)
+{
+	cpAssertHard(cpConstraintIsPivotJoint(constraint), "Constraint is not a pivot joint.");
+	cpConstraintActivateBodies(constraint);
+	((cpPivotJoint *)constraint)->anchorB = anchorB;
 }
