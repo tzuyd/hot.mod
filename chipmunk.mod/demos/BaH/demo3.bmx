@@ -1,4 +1,4 @@
-SuperStrict
+﻿SuperStrict
 
 Framework BRL.Max2D
 Import BRL.Random
@@ -72,7 +72,7 @@ Function init()
 	
 	space = New CPSpace.Create()
 	space.SetIterations(5)
-	space.ResizeHash(30.0, 2999)
+	space.usespatialHash(30.0, 2999)
 	space.SetGravity(Vec2(0, 100))
 
 

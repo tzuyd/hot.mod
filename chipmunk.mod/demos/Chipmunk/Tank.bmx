@@ -23,20 +23,17 @@ End Rem
 SuperStrict
 
 ' Import required modules
-Framework brl.StandardIO
-Import brl.Max2D
-Import brl.d3d9max2d
-Import brl.random
-Import brl.math
-Import brl.Color
+Framework brl.d3d9max2d
+'Import brl.StandardIO
+'Import brl.Max2D
+'Import brl.random
+'Import brl.math
+'Import brl.Color
 
 ' Import Chipmunk library
 Import hot.chipmunk
 
-Import "ChipmunkDemoTextSupport.bmx"
-
-Include "ChipmunkDemo.bmx"
-Include "ChipmunkDebugDraw.bmx"
+Import "ChipmunkDemo.bmx"
 
 Global tankBody:CPBody = Null
 Global tankControlBody:CPBody = Null
@@ -50,7 +47,6 @@ Function UpdateSpace(space:CPSpace, dt:Double)
     ' Drive the tank towards the mouse
     If ChipmunkDemoMouse.near(tankBody.GetPosition(), 30.0)
 	Local isnear:Int = ChipmunkDemoMouse.near(tankBody.GetPosition(), 30.0)
-	DebugStop
         tankControlBody.SetVelocity(CPVZero) ' Stop
     Else
         Local Direction:Double
@@ -67,7 +63,7 @@ Function AddBox:CPBody(space:CPSpace, Size:Double, mass:Double)
 	space.AddBody(body)
     Body.SetPosition(Vec2(Rnd() * (640.0 - 2.0 * radius) - (320.0 - radius), -(Rnd() * (480.0 - 2.0 * radius) - (240.0 - radius))))
     
-	Local shape:CPPolyShape = New CPPolyShape.BoxShapeCreate(body, Size, Size, 0.0)
+	Local shape:CPPolyShape = New CPboxShape.Create(body, Size, Size, 0.0)
     space.AddShape(shape)
     Shape.SetElasticity(0.0)
     Shape.SetFriction(0.7)
@@ -78,7 +74,7 @@ End Function
 Function InitSpace:CPSpace()
     ChipmunkDemoMessageString = "Use the mouse to drive the tank, it will follow the cursor."
     
-	init()
+    space = New CPSpace.Create()
     space.SetIterations(10)
     space.SetSleepTimeThreshold(0.5)
     

@@ -1,4 +1,4 @@
-SuperStrict
+﻿SuperStrict
 
 Framework BRL.Max2D
 Import hot.Chipmunk
@@ -74,7 +74,7 @@ Function init()
 	
 	space = New CPSpace.Create()
 	space.SetIterations(20)
-	space.ResizeHash(40.0, 1000)
+	space.usespatialhash(40.0, 1000)
 	space.SetGravity(Vec2(0, 100))
 
 	Local verts:CPVect[] = [ ..

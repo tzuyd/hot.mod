@@ -106,7 +106,7 @@ End Function
         Global crush:CrushingContext
 
 Function InitSpace:CPSpace()
-    init()
+    space = New CPSpace.Create()
     space.SetIterations(30)
     space.SetGravity(Vec2(0, 300))
     space.SetCollisionSlop(0.5)
@@ -136,7 +136,7 @@ Function InitSpace:CPSpace()
 
 	scaleStaticBody = New CPBody.Create(INFINITY, INFINITY)
 	space.AddBody(scaleStaticBody)
-	segshap = New CPSegmentShape.Create(scaleStaticBody, Vec2(240, 180), Vec2(-140, 180), 4.0)
+	segshap = New CPSegmentShape.Create(scaleStaticBody, Vec2(-240, 180), Vec2(-140, 180), 4.0)
 	space.AddShape(segshap)
 	segshap.SetElasticity(1.0)
 	segshap.SetFriction(1.0)
@@ -171,7 +171,6 @@ End Function
 Function DestroySpace(space:CPSpace)
     ChipmunkDemoFreeSpaceChildren(space)
     space.Free()
-	CleanUp
 End Function
 
 Local ContactGraph:ChipmunkDemo = New chipmunkdemo( ..

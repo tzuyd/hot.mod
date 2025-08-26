@@ -22,7 +22,6 @@ EndRem
 
 SuperStrict
 
-' Import required modules
 Framework brl.d3d9max2d
 'Import brl.StandardIO
 'Import brl.Max2D
@@ -30,7 +29,6 @@ Framework brl.d3d9max2d
 'Import brl.math
 'Import brl.Color
 
-' Import Chipmunk library
 Import hot.chipmunk
 
 Import "ChipmunkDemo.bmx"
@@ -56,7 +54,7 @@ Function waterPreSolve:Int(shapeA:CPShape, shapeB:CPShape, contacts:CPContact[],
     Local body:CPBody = poly.GetBody()
     
     ' Get the top of the water sensor bounding box to use as the water level
-    Local level:Double = water.GetBB().t
+    Local level:Double = water.GetBB().b
     
     Local verts: CPVect[] = poly.GetVerts()
     Local Count:Int = verts.Length
@@ -69,6 +67,8 @@ Function waterPreSolve:Int(shapeA:CPShape, shapeB:CPShape, contacts:CPContact[],
     For Local i:Int = 0 Until Count
         Local a:CPVect = Body.Local2World(verts[j])
         Local b:CPVect = Body.Local2World(verts[i])
+        a.y = -a.y
+        b.y = -b.y
         
         If a.y < level Then
 			clipped[clippedCount] = a
@@ -77,7 +77,7 @@ Function waterPreSolve:Int(shapeA:CPShape, shapeB:CPShape, contacts:CPContact[],
 		
         Local a_level:Double = a.y - level
         Local b_level:Double = b.y - level
-        
+
         If a_level * b_level < 0.0 Then
             Local t:Double = Abs(a_level) / (Abs(a_level) + Abs(b_level))
             clipped[clippedCount] = a.Lerp(b, t)
@@ -85,12 +85,15 @@ Function waterPreSolve:Int(shapeA:CPShape, shapeB:CPShape, contacts:CPContact[],
         EndIf
 		j = i
     Next
-    
+    For Local i:Int = 0 Until clippedCount
+		clipped[i].y = -clipped[i].y
+	Next
+		
     ' Calculate buoyancy from the clipped polygon area
-    Local clippedArea:Double = AreaForPoly(clipped, 0.0,clippedCount)
+    Local clippedArea:Double = AreaForPoly(clipped, 0.0, clippedCount)
     Local displacedMass:Double = clippedArea * FLUID_DENSITY
     Local centroid:CPVect = CentroidForPoly(clipped, clippedCount)
-    
+
 	bmx_drawpolygon(clippedCount, clipped, 5.0, New scolor8(0, 0, 255, 255), New SColor8(0, 0, 255, Int(255 * 0.1)))
 	bmx_drawdot(5, centroid, New SColor8(0, 0, 255, 255))
 	
@@ -221,7 +224,6 @@ End Function
 Function destroySpace(space:CPSpace)
     ChipmunkDemoFreeSpaceChildren(space)
     space.Free()
-	CleanUp
 End Function
 
 Global Buoyancy:ChipmunkDemo = New ChipmunkDemo( ..

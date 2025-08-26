@@ -81,7 +81,7 @@ Function InitSpace:CPSpace()
     ChipmunkDemoMessageString = "Use the arrow keys to control the machine."
 	ChipmunkDemoMessageString:+"~nBROKEN: Constraints are being initialised at 0,0 and get corrected after one frame,~nhowever that's enough time to push all the elements out of alignment"
     
-    init()
+    space = New CPSpace.Create()
     Space.SetGravity(Vec2(0, 600))
     
     Local staticBody:CPBody = Space.GetStaticBody()
@@ -178,7 +178,6 @@ Function InitSpace:CPSpace()
 
 '	// connect the plunger to the small gear.
 	Local tmppin:CPPinJoint = New CPPinJoint.Create(smallGear, plunger, Vec2(80, 0), Vec2(0, 0))
-	tmppin.SetErrorBias(1)	' Remove when fixed
 	space.AddConstraint(tmppin)
 '	// connect the gears.
 	space.AddConstraint(New CPGearJoint.Create(smallGear, bigGear, -Pi / 2.0, -2.0))
@@ -197,9 +196,8 @@ Function InitSpace:CPSpace()
 	Shape.setFilter(GRAB_FILTER)
 	
 	space.AddConstraint(New CPPivotJoint.Create(staticBody, feeder, Vec2(-224.0, -bottom), Vec2(0.0, -(-Leng / 2.0))))
-	Local anchr:CPVect = feeder.World2Local(Vec2(-224, 160.0))
-'	space.AddConstraint(New CPPinJoint.Create(feeder, smallGear, anchr, Vec2(0.0, -80.0))) ' TODO : Fix me
-	space.AddConstraint(New CPPinJoint.Create(feeder, smallGear, CPVZero, Vec2(0.0, -80.0)))
+	Local anchr:CPVect = feeder.World2Local(feeder.GetPosition().Sub(Vec2(-224, 160.0)))
+	space.AddConstraint(New CPPinJoint.Create(feeder, smallGear, anchr, Vec2(0.0, -80.0))) ' TODO : Fix me
 
     ' Motorize the second gear
     motor = New CPSimpleMotor.Create(staticBody, bigGear, 3.0)
@@ -211,7 +209,6 @@ End Function
 Function DestroySpace(space:CPSpace)
     ChipmunkDemoFreeSpaceChildren(space)
     space.Free()
-	CleanUp()
 End Function
 
 Local Pump:ChipmunkDemo = New chipmunkdemo( ..

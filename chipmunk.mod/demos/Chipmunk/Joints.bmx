@@ -123,7 +123,7 @@ Function addChassis:CPBody(space:CPSpace, Pos:CPVect, boxOffset:CPVect)
 End Function
 
 Function initSpace:CPSpace()
-    Local space:CPSpace = New CPSpace.Create()
+    space = New CPSpace.Create()
     space.SetIterations(10)
     space.SetGravity(Vec2(0, 100))
     space.SetSleepTimeThreshold(0.5)

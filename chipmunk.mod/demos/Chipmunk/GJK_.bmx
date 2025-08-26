@@ -53,8 +53,8 @@ End Function
 
 ' Function to initialize the space
 Function initSpace:CPSpace()
-	init()
     ' Create a new space
+	space = New CPSpace.Create()
     space.SetIterations(5)
     space.SetDamping 0.1
 
@@ -148,7 +148,6 @@ End Function
 Function destroySpace(space:CPSpace)
     ChipmunkDemoFreeSpaceChildren(space)
     space.Free()
-	CleanUp
 End Function
 
 ' Initialize the ChipmunkDemo
@@ -161,17 +160,3 @@ Global GJK:ChipmunkDemo = New ChipmunkDemo( ..
     drawSpace,  ..
     destroySpace ..
 , 30)
-
-' Start the demo
-    RunDemo(demo_index)
-
-While Not KeyDown(KEY_ESCAPE)
-
-	Cls
-	
-	display()
-	event()
-
-Wend
-
-End

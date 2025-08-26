@@ -47,8 +47,8 @@ SuperStrict
 Import hot.chipmunk
 
 Function LAColor:SColor8(l:Byte, a:Float)
-    Local Color:SColor8 = New SColor8(l, l, l, Byte(a * 255))
-    Return Color
+	If a = 0 Then Return New SColor8($07, $36, $42, 255)
+	Return New SColor8(l, l, l, Byte(a * 255.0))
 End Function
 
 Rem
@@ -111,10 +111,12 @@ Function bmx_drawsegment(a:CPVect, b:CPVect, Color:SColor8, Data:Object = Null)
     bmx_drawfatsegment(a, b, -1, Color, Color, Data)
 End Function
 
-Function bmx_drawfatsegment(a:CPVect, b:CPVect, radius:Double, outlineColor:SColor8, fillColor:SColor8, Data:Object = Null)
+Function bmx_drawfatsegment(a:CPVect, b:CPVect, radius:Double, outlineColor:SColor8, fillColor:SColor8, Data:Object = Null, drawseg:Int = False)
     ' Calculate the adjusted radius
     Local r:Float = radius + bmx_drawpointlinescale
     
+	bmx_drawcircle(a, 0, radius, outlineColor, fillColor, Data, 0)
+	bmx_drawcircle(b, 0, radius, outlineColor, fillColor, Data, 0)
     ' Set outline color and alpha
     SetColor outlineColor.r, outlineColor.g, outlineColor.b
     SetAlpha outlineColor.a / 255
@@ -125,6 +127,8 @@ Function bmx_drawfatsegment(a:CPVect, b:CPVect, radius:Double, outlineColor:SCol
     ' Draw the outline
     DrawLine a.x, a.y, b.x, b.y, 0
 
+	bmx_drawcircle(a, 0, radius, outlineColor, fillColor, Data, 0)
+	bmx_drawcircle(b, 0, radius, outlineColor, fillColor, Data, 0)
     ' Set fill color and alpha
     SetColor fillcolor.r, fillcolor.g, fillcolor.b
     SetAlpha fillColor.a / 255
@@ -133,13 +137,46 @@ Function bmx_drawfatsegment(a:CPVect, b:CPVect, radius:Double, outlineColor:SCol
     
     ' Draw the filled shape
     DrawLine a.x, a.y, b.x, b.y, 0
+
+	If drawseg
+	    SetColor outlineColor.r, outlineColor.g, outlineColor.b
+	    SetAlpha outlineColor.a / 255
+	    SetLineWidth 1
+	    DrawLine a.x, a.y, b.x, b.y, 0
+	EndIf
 End Function
 
 Function bmx_drawpolygon(Count:Int, verts:CPVect[], radius:Double, outlineColor:SColor8, fillColor:SColor8, Data:Object = Null)
-	    Local polyFillVerts:Float[] = New Float[verts.Length * 2]
+    ' Expanded vertices to account for the radius
+    Local expandedVerts:CPVect[] = New CPVect[Count]
+
+    ' Calculate normals and expand the vertices
+    For Local i:Int = 0 Until Count
+        Local prev:CPVect = verts[(i - 1 + Count) Mod Count]
+        Local curr:CPVect = verts[i]
+        Local v_next:CPVect = verts[(i + 1) Mod Count]
+
+        ' Calculate the edges
+        Local edge1:CPVect = curr.Sub(prev)
+        Local edge2:CPVect = v_next.Sub(curr)
+
+        ' Calculate normals
+        Local normal1:CPVect = edge1.Perp().Normalize()
+        Local normal2:CPVect = edge2.Perp().Normalize()
+
+        ' Calculate the bisector of the normals
+        Local bisector:CPVect = normal1.Add(normal2).Normalize()
+
+        ' Adjust the vertex by moving it along the bisector by radius / cos(angle / 2)
+        Local angle:Double = Acos(normal1.Dot(normal2))
+        Local adjustment:Double = radius / Cos(angle / 2)
+        expandedVerts[i] = curr.Sub(bisector.Mult(adjustment))
+    Next
+
+	    Local polyFillVerts:Float[] = New Float[expandedVerts.Length * 2]
 	    
 	    For Local i:Int = 0 Until Count
-	        Local v:CPVect = verts[i]
+	        Local v:CPVect = expandedVerts[i]
 	        polyFillVerts[i * 2] = v.x
 	        polyFillVerts[i * 2 + 1] = v.y
 	    Next
@@ -148,9 +185,10 @@ Function bmx_drawpolygon(Count:Int, verts:CPVect[], radius:Double, outlineColor:
         SetColor fillColor.r, fillColor.g, fillColor.b
         SetAlpha fillColor.a / 255
 	    DrawPoly polyFillVerts
+		
     For Local i:Int = 0 Until Count
-        Local v0:CPVect = verts[i]
-        Local v_next:CPVect = verts[(i + (Count + 1)) Mod Count]
+        Local v0:CPVect = expandedVerts[i]
+        Local v_next:CPVect = expandedVerts[(i + (Count + 1)) Mod Count]
         
         ' Draw the outline
 		bmx_drawfatsegment(v_next, v0, 0, outlineColor, outlineColor, Data)
@@ -160,7 +198,7 @@ End Function
 Function bmx_drawbb(bb:CPBB, Color:SColor8)
 	bb._Update
     Local verts:CPVect[] = [Vec2(bb.r, bb.b), Vec2(bb.r, bb.t), Vec2(bb.l, bb.t), Vec2(bb.l, bb.b)]
-    bmx_drawpolygon(4, verts, 0.0, Color, New SColor8(0, 0, 0, 255))
+    bmx_drawpolygon(4, verts, 0.0, Color, New SColor8(0, 0, 0, 0))
 End Function
 
 Rem
@@ -206,8 +244,6 @@ Function bmx_drawshape(shape:Object, options:Object)
 			tb = tb.Rotate(body.GetRot())
 			tb = tb.Add(body.GetPosition())
     
-			bmx_drawcircle(ta, a, CPSegmentShape(shape).GetRadius(), outline_color, fill_color, Data, 0)
-			bmx_drawcircle(tb, a, CPSegmentShape(shape).GetRadius(), outline_color, fill_color, Data, 0)
             bmx_drawfatsegment(ta, tb, CPSegmentShape(shape).GetRadius(), outline_color, fill_color, Data)
 		ElseIf CPPolyShape(shape)
             Local Count:Int = bmx_cppolyshape_numverts(CPPolyShape(shape).cpObjectPtr)
@@ -223,9 +259,12 @@ Function bmx_drawshape(shape:Object, options:Object)
 	EndIf
 End Function
 
-Function adjustVertices:CPVect[] (verts:CPVect[], Position:CPVect, angle:Double)
-    Local adjustedVerts:CPVect[] = New CPVect[verts.Length]
-    For Local i:Int = 0 Until verts.Length
+Function adjustVertices:CPVect[] (verts:CPVect[], Position:CPVect, angle:Double, Count:Int = 0)
+	If Not Count
+		Count = verts.Length
+	End If
+    Local adjustedVerts:CPVect[] = New CPVect[Count]
+    For Local i:Int = 0 Until Count
         ' Rotate the vertex around the body's position
         Local rotatedX:Double = verts[i].x * Cos(angle) - Verts[i].y * Sin(angle)
         Local rotatedY:Double = verts[i].x * Sin(angle) + Verts[i].y * Cos(angle)

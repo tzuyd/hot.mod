@@ -115,7 +115,7 @@ End Function
 Function initSpace:CPSpace()
     ChipmunkDemoMessageString = "Use the arrow keys to control the machine."
     
-    init()
+    space = New CPSpace.Create()
     space.SetIterations(20)
     space.SetGravity(Vec2(0, 500))
 

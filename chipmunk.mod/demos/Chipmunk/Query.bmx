@@ -55,8 +55,10 @@ Function UpdateSpace(space:CPSpace, dt:Double)
     Local segInfo:cpSegmentQueryInfo = New cpSegmentQueryInfo
 	Local First:CPShape = space.SegmentQueryFirst(Start, EndPoint, radius, CP_SHAPE_FILTER_ALL, segInfo)
     If First
-        Local Point:CPVect = New CPVect.Create(segInfo.pointx, segInfo.Pointy)
-        Local n:CPVect = New CPVect.Create(segInfo.Normalx, segInfo.Normaly)
+        Local Point:CPVect = First.GetBody().GetPosition()
+        Local n:CPVect = CPVZero
+'        Local Point:CPVect = New CPVect.Create(segInfo.pointx, segInfo.Pointy)
+'        Local n:CPVect = New CPVect.Create(segInfo.Normalx, segInfo.Normaly)
         
         ' Draw blue over the occluded part of the query
         bmx_drawsegment(Start.Lerp(EndPoint, segInfo.Alpha), EndPoint, New SColor8(0, 0, 255, 255))
@@ -69,31 +71,34 @@ Function UpdateSpace(space:CPSpace, dt:Double)
 
         
 		fmt:+"Segment Query: Dist(" + segInfo.Alpha * Start.dist(EndPoint) + ") Normal(" + n.x + ", " + n.y + ")" ..
-		+ "~nQuery Info functionality is currently disabled"
+		+ "~nQueryInfo functionality is currently disabled"
     Else
 		fmt:+"Segment Query (None)"
     End If
     ChipmunkDemoTextDrawString(Vec2(-300, -220), fmt)
     
     ' Draw a fat green line over the unoccluded part of the query
-    bmx_drawfatsegment(Start, Start.Lerp(EndPoint, segInfo.Alpha), radius, New SColor8(0, 255, 0, 255), LAColor(0, 0))
+    bmx_drawfatsegment(Start, EndPoint, radius, New SColor8(0, 255, 0, 255), LAColor(0, 0),, 1)
+'    bmx_drawfatsegment(Start, Start.Lerp(EndPoint, segInfo.Alpha), radius, New SColor8(0, 255, 0, 255), LAColor(0, 0),, 1)
     
     Local nearestInfo:CPPointQueryInfo = New CPPointQueryInfo
 	Local nearest:CPShape = space.PointQueryNearest(ChipmunkDemoMouse, 100.0, CP_SHAPE_FILTER_ALL, nearestInfo)
     If nearest
         ' Draw a grey line to the closest shape.
         bmx_drawdot(3, ChipmunkDemoMouse, New SColor8(128, 128, 128, 255))
-        bmx_drawsegment(ChipmunkDemoMouse, New CPVect.Create(nearestInfo.Pointx, nearestInfo.pointY), New SColor8(128, 128, 128, 255))
-        
+        bmx_drawsegment(ChipmunkDemoMouse, nearest.GetBody().GetPosition(), New SColor8(128, 128, 128, 255))
+'        bmx_drawsegment(ChipmunkDemoMouse, New CPVect.Create(nearestInfo.Pointx, nearestInfo.pointY), New SColor8(128, 128, 128, 255))
+' Temporary functionality until QueryInfo is working
         ' Draw a red bounding box around the shape under the mouse.
-        If nearestInfo.distance < 0 Then bmx_drawbb(nearest.GetBB(), New SColor8(255, 0, 0, 255))
+        If nearestInfo.distance = 0 Then bmx_drawbb(nearest.GetBB(), New SColor8(255, 0, 0, 255))
+'        If nearestInfo.distance < 0 Then bmx_drawbb(nearest.GetBB(), New SColor8(255, 0, 0, 255))
     End If
 End Function
 
 Function InitSpace:CPSpace()
     QUERY_START = CPVZero
     
-	init()
+	space = New CPSpace.Create()
     space.SetIterations(5)
     
     ' add a fat segment
@@ -142,7 +147,6 @@ End Function
 Function DestroySpace(space:CPSpace)
     ChipmunkDemoFreeSpaceChildren(space)
     space.Free()
-	CleanUp
 End Function
 
 Global QueryDemo:ChipmunkDemo = New ChipmunkDemo( ..
@@ -154,17 +158,3 @@ Global QueryDemo:ChipmunkDemo = New ChipmunkDemo( ..
     ChipmunkDemoDefaultDrawImpl,  ..
     DestroySpace ..
 , 10)
-
-    ' Initialize the demo
-    RunDemo(demo_index)
-
-While Not KeyDown(KEY_ESCAPE)
-
-	Cls
-	
-	display()
-	event()
-
-Wend
-
-End

@@ -126,7 +126,6 @@ End Function
 Function destroySpace(space:CPSpace)
     ChipmunkDemoFreeSpaceChildren(space)
     space.Free()
-	CleanUp
 End Function
 
 Global Plink:ChipmunkDemo = New ChipmunkDemo( ..
@@ -138,17 +137,3 @@ Global Plink:ChipmunkDemo = New ChipmunkDemo( ..
 	ChipmunkDemoDefaultDrawImpl,  ..
 	destroySpace ..
 , 2)
-
-    ' Initialize the demo
-    RunDemo(demo_index)
-
-While Not KeyDown(KEY_ESCAPE)
-
-	Cls
-	
-	display()
-	event()
-
-Wend
-
-End

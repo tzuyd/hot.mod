@@ -115,7 +115,7 @@ Function PlayerUpdate(space:CPSpace, dt:Double)
 End Function
 
 Function InitPlayerSpace:CPSpace()
-	init()
+	space = New CPSpace.Create()
     space.SetIterations(10)
     space.SetGravity(Vec2(0, GRAVITY))
 '	space.setsleepTimeThreshold(1000)
@@ -183,7 +183,6 @@ End Function
 Function DestroyPlayerSpace(space:CPSpace)
     ChipmunkDemoFreeSpaceChildren(space)
     space.Free()
-	CleanUp
 End Function
 
 Global PlayerDemo:ChipmunkDemo = New ChipmunkDemo( ..
@@ -195,17 +194,3 @@ Global PlayerDemo:ChipmunkDemo = New ChipmunkDemo( ..
 	ChipmunkDemoDefaultDrawImpl,  ..
 	DestroyPlayerSpace ..
 , 18)
-
-    ' Initialize the demo
-    RunDemo(demo_index)
-
-While Not KeyDown(KEY_ESCAPE)
-
-	Cls
-	
-	display()
-	event()
-
-Wend
-
-End

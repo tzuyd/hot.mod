@@ -1,4 +1,4 @@
-SuperStrict
+﻿SuperStrict
 
 Framework BRL.Max2D
 
@@ -63,7 +63,7 @@ Function init()
 	ResetShapeIdCounter()
 	
 	space = New CPSpace.Create()
-	space.ResizeHash(20.0, 999)
+	space.usespatialHash(20.0, 999)
 	space.SetGravity(Vec2(0, 100))
 
 	Local verts:CPVect[] = [ ..

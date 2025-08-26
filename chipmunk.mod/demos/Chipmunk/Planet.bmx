@@ -106,7 +106,7 @@ Function AddBox(space:CPSpace)
 End Function
 
 Function InitSpace:CPSpace()
-	init()
+	space = New CPSpace.Create()
 	space = New CPSpace.Create()
     space.SetIterations(20)
     

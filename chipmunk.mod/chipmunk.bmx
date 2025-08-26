@@ -1,4 +1,4 @@
-
+﻿
 ' Copyright (c) 2007-2016 Bruce A Henderson
 ' 
 ' Permission is hereby granted, free of charge, to any person obtaining a copy
@@ -26,13 +26,20 @@ bbdoc: Chipmunk 2D Physics
 End Rem
 Module hot.Chipmunk
 
-ModuleInfo "Version: 1.07"
+ModuleInfo "Version: 1.08"
 ModuleInfo "License: MIT"
 ModuleInfo "Copyright: Wrapper - 2007-2016 Bruce A Henderson"
 ModuleInfo "History:   Wrapper - 2024 1.07 Hotcakes"
 ModuleInfo "Modserver: BRL"
 ModuleInfo "REQUIRES:  BlitzMax NG build v0.136 or later"
 
+ModuleInfo "History: 1.08"
+ModuleInfo "History: Chipmunk Pro update!  Sort of"
+ModuleInfo "History: Fixed:      CPContact.SetR2 (was setting R1 instead)"
+ModuleInfo "History: Fixed:      beginFunc, postSolveFunc and separateFunc (Shape data set incorrectly)"
+ModuleInfo "History: NEW:        CPVect.DistSq :Double()"
+ModuleInfo "History: NEW:        CPBB.NewForCircle :CPBB()"
+ModuleInfo "History: NEW:        CPSpace.RemoveShape ()"
 ModuleInfo "History: 1.07"
 ModuleInfo "History: Updated To latest v7.0.3 source."
 ModuleInfo "History: Changed:    ResizeActiveHash () And ResizeStaticHash () have been merged into UseSpatialHash ()"
@@ -46,7 +53,6 @@ ModuleInfo "History: Fixed:      MomentForCircle () (returning garbage via incor
 ModuleInfo "History: Fixed:      If a cpObjectPtr has been bound, Freeing it *needs* cpunbind ()"
 ModuleInfo "History: TODO:       Decide on an elegant way to synchronise local CPVect updates with Chipmunk"
 ModuleInfo "History: NEW:        CPTransform "
-ModuleInfo "History:                Always use a New CPTransform, never assume a previous transform to be persistent"
 ModuleInfo "History: NEW:        clamp :Double()"
 ModuleInfo "History: NEW:        lerp :Double()"
 ModuleInfo "History: NEW:        lerpconst :Double()"
@@ -150,9 +156,12 @@ ModuleInfo "C_OPTS: -std=gnu99"
 
 Import brl.map
 Import brl.math
+Import brl.linkedlist
+Import brl.pixmap
+Import brl.bank
+Import brl.max2d
 
 Import "common.bmx"
-
 
 Rem
 bbdoc: Initialises the physics engine.  (deprecated in 1.07)
@@ -444,7 +453,7 @@ Type CPBody Extends CPObject
 	
 	Rem
 	bbdoc: Get the absolute velocity of the rigid body at the given world point @point.
-	about: It�s often useful to know the absolute velocity of a point on the surface of a body since the angular velocity affects everything except the center of gravity.
+	about: It’s often useful to know the absolute velocity of a point on the surface of a body since the angular velocity affects everything except the center of gravity.
 	end rem
 	Method VelocityAtWorldPoint:CPVect(Point:CPVect)
 		Return CPVect._create(bmx_cpbody_velocityatworldpoint(cpObjectPtr, Point.vecPtr))
@@ -521,7 +530,7 @@ Type CPBody Extends CPObject
 	bbdoc: This one is more interesting.
 	about: Calls callback once for each collision pair that body is involved in. 
 	Calling CPArbiter.Get[Bodies|Shapes]() will return the body or shape for body as the first argument. 
-	You can use this to check all sorts of collision information for a body like if it’s touching the ground, another particular object, how much collision force is being applied to an object, etc. 
+	You can use this to check all sorts of collision information for a body like if itâ€™s touching the ground, another particular object, how much collision force is being applied to an object, etc. 
 	Sensor shapes and arbiters that have been rejected by a collision handler callback or CPArbiter.Ignore() are not tracked by the contact graph.
 	End Rem
 	Method EachArbiter(callback(body:Object, arbiter:Object, callbackData:Object), Data:Object = Null)
@@ -603,13 +612,10 @@ Type CPSpace Extends CPObject
 	bbdoc: Creates a New CPSpace.
 	End Rem
 	Method Create:CPSpace()
-		?ios
 		If ENABLE_HASTY
-			ENABLE_HASTY = 0
-		End If
-		?
-		If ENABLE_HASTY
+		?Not ios
 			cpObjectPtr = bmx_cphastyspace_new(Self)
+		?
 		Else
 			cpObjectPtr = bmx_cpspace_create(Self)
 		End If
@@ -628,14 +634,11 @@ Type CPSpace Extends CPObject
 	about: /// On ARM platforms that support NEON, this will enable the vectorized solver.
 	/// CPSpace also supports multiple threads, but runs single threaded by default for determinism.
 	End Rem
-	Method SetThreads(threads:ulong)
-		?ios
+	Method SetThreads(threads:Size_T)
 		If ENABLE_HASTY
-			ENABLE_HASTY = 0
-		End If
-		?
-		If ENABLE_HASTY
+		?Not ios
 			cpHastySpaceSetThreads(cpObjectPtr, threads)
+		?
 		EndIf
 	End Method
 
@@ -689,7 +692,7 @@ Type CPSpace Extends CPObject
 
 	Rem
 	bbdoc: A dedicated static body for the space. 
-	about: You don’t have to use it, but because its memory is managed automatically with the space its very convenient. 
+	about: You donâ€™t have to use it, but because its memory is managed automatically with the space its very convenient. 
 	You can set its user data pointer to something helpful if you want for callbacks.
 	End Rem
 	Method GetStaticBody:CPBody()
@@ -725,6 +728,19 @@ Type CPSpace Extends CPObject
 	Method AddShape(shape:CPShape)
 		bmx_cpspace_addshape(cpObjectPtr, shape.cpObjectPtr)
 		shape.parent = Self
+	End Method
+
+	Rem
+	bbdoc: This function removes @shape from space.
+	about: The add/remove functions cannot be called from within a callback other than a postStep() callback (which is different than a postSolve() callback!). 
+	Attempting to add or remove objects from the space while CPSpace.DoStep() is still executing will throw an assertion. 
+	See the <a href="http://chipmunk-physics.net/release/ChipmunkLatest-Docs/#Callbacks">callbacks section</a> for more information. 
+	Be careful not to free bodies before removing shapes and constraints attached to them or you will cause crashes.. 
+	The contains functions allow you to check if an object has been added to the space or not.
+	End Rem
+	Method RemoveShape(shape:CPShape)
+		cpSpaceRemoveShape(cpObjectPtr, shape.cpObjectPtr)
+		shape.parent = Null
 	End Method
 
 	Rem
@@ -768,10 +784,10 @@ separateFunc(shapeA:CPShape, shapeB:CPShape, contacts:CPContact[], normalCoefici
 			' add it (for reference counting
 			collisionPairs.Insert(collpair, collpair)
 			
-			Local dobegincollision:Int(arb:Byte Ptr, space:Byte Ptr, Data:Object) = _noCollisionI
-			Local dopreSolvecollision:Int(arb:Byte Ptr, space:Byte Ptr, Data:Object) = _noCollisionI
-			Local dopostSolvecollision(arb:Byte Ptr, space:Byte Ptr, Data:Object) = _noCollision
-			Local doseparatecollision(arb:Byte Ptr, space:Byte Ptr, Data:Object) = _noCollision
+			Local dobegincollision:Int(arb:Byte Ptr, space:Byte Ptr, Data:Object) = AlwaysCollide
+			Local dopreSolvecollision:Int(arb:Byte Ptr, space:Byte Ptr, Data:Object) = AlwaysCollide
+			Local dopostSolvecollision(arb:Byte Ptr, space:Byte Ptr, Data:Object) = DoNothing
+			Local doseparatecollision(arb:Byte Ptr, space:Byte Ptr, Data:Object) = DoNothing
 			If beginFunc
 				dobegincollision = _dobeginCollision
 			EndIf
@@ -793,9 +809,9 @@ separateFunc(shapeA:CPShape, shapeB:CPShape, contacts:CPContact[], normalCoefici
 	
 	Function _dobeginCollision:Int(arb:Byte Ptr, space:Byte Ptr, Data:Object)
 	    If _CollisionPair(data)
-	        Local a:CPShape = New CPShape
-	        Local b:CPShape = New CPShape
-	        cpArbiterGetShapes(arb, Varptr(a.cpObjectPtr), Varptr(b.cpObjectPtr))
+	        Local a:Byte ptr
+	        Local b:Byte ptr
+	        cpArbiterGetShapes(arb, VarPtr(a), VarPtr(b))
 	
 	        ' Get the number of contact points
 	        Local Count:Int = cpArbiterGetCount(Arb)
@@ -812,7 +828,7 @@ separateFunc(shapeA:CPShape, shapeB:CPShape, contacts:CPContact[], normalCoefici
 			If cpArbiter(_CollisionPair(Data).Data) Then _CollisionPair(Data).Data = New cpArbiter._create(arb)
 			
 	        ' Call the collision pair Function with the adjusted arguments
-	        Return _CollisionPair(Data).beginFunc(a, b, contacts, _CollisionPair(Data).normalCoeficient, _CollisionPair(Data).Data)
+	        Return _CollisionPair(Data).beginFunc(CPShape(cpfind(a)), CPShape(cpfind(b)), contacts, _CollisionPair(Data).normalCoeficient, _CollisionPair(Data).Data)
 		End If
 	End Function
 	
@@ -843,9 +859,9 @@ separateFunc(shapeA:CPShape, shapeB:CPShape, contacts:CPContact[], normalCoefici
 	
 	Function _dopostSolveCollision(arb:Byte Ptr, space:Byte Ptr, Data:Object)
 	    If _CollisionPair(data)
-	        Local a:CPShape = New CPShape
-	        Local b:CPShape = New CPShape
-	        cpArbiterGetShapes(arb, Varptr(a.cpObjectPtr), Varptr(b.cpObjectPtr))
+	        Local a:Byte ptr
+	        Local b:Byte ptr
+	        cpArbiterGetShapes(arb, VarPtr(a), VarPtr(b))
 				
 	        ' Get the number of contact points
 	        Local Count:Int = cpArbiterGetCount(arb)
@@ -862,41 +878,28 @@ separateFunc(shapeA:CPShape, shapeB:CPShape, contacts:CPContact[], normalCoefici
 			If cpArbiter(_CollisionPair(Data).Data) Then _CollisionPair(Data).Data = New cpArbiter._create(arb)
 			
 	        ' Call the collision pair Function with the adjusted arguments
-	        _CollisionPair(Data).postSolveFunc(a, b, contacts, _CollisionPair(Data).normalCoeficient, _CollisionPair(Data).Data)
+	        _CollisionPair(Data).postSolveFunc(CPShape(cpfind(a)), CPShape(cpfind(b)), contacts, _CollisionPair(Data).normalCoeficient, _CollisionPair(Data).Data)
 		End If
 	End Function
 	
 	Function _doseparateCollision(arb:Byte Ptr, space:Byte Ptr, Data:Object)
 	    If _CollisionPair(data)
-	        Local a:CPShape = New CPShape
-	        Local b:CPShape = New CPShape
-	        cpArbiterGetShapes(arb, Varptr(a.cpObjectPtr), Varptr(b.cpObjectPtr))
+	        Local a:Byte ptr
+	        Local b:Byte ptr
+	        cpArbiterGetShapes(arb, VarPtr(a), VarPtr(b))
 				
-	        ' Get the number of contact points
-	        Local Count:Int = cpArbiterGetCount(arb)
-	        
-	        ' Create an array To store the CPContact objects
-	        Local contacts:CPContact[] = New CPContact[count]
-	        
-	        ' Retrieve the CPContact objects from the arbiter
-	        For Local i:Int = 0 Until count
-	            contacts[i] = CPContact._create(bmx_cparbiter_getcontacts(arb, i))
-	            ' You may need To set other properties of CPContact objects If required
-	        Next
-	
 			If cpArbiter(_CollisionPair(Data).Data) Then _CollisionPair(Data).Data = New cpArbiter._create(arb)
 			
 	        ' Call the collision pair Function with the adjusted arguments
-	        _CollisionPair(Data).separateFunc(a, b, contacts, _CollisionPair(Data).normalCoeficient, _CollisionPair(Data).Data)
+	        _CollisionPair(Data).separateFunc(CPShape(cpfind(a)), CPShape(cpfind(b)), Null, _CollisionPair(Data).normalCoeficient, _CollisionPair(Data).Data)
 		End If
 	End Function
 	
-	Function _noCollisionI:Int(arb:Byte Ptr, space:Byte Ptr, Data:Object)
+	Function AlwaysCollide:Int(arb:Byte Ptr, space:Byte Ptr, Data:Object)
 		Return True
 	End Function
 	
-	Function _noCollision(arb:Byte Ptr, space:Byte Ptr, Data:Object)
-		Return
+	Function DoNothing(arb:Byte Ptr, space:Byte Ptr, Data:Object)
 	End Function
 	
 	Rem
@@ -911,10 +914,10 @@ separateFunc(shapeA:CPShape, shapeB:CPShape, contacts:CPContact[], normalCoefici
 		collisionPairs.Remove(collpair)
 		
 		bmx_cpspace_removecollisionpairfunc(cpObjectPtr, collTypeA, collTypeB,  ..
-			_noCollisionI,  ..
-			_noCollisionI,  ..
-			_noCollision,  ..
-			_noCollision)
+			AlwaysCollide,  ..
+			AlwaysCollide,  ..
+			DoNothing,  ..
+			DoNothing)
 	End Method
 
 	Rem
@@ -922,7 +925,7 @@ separateFunc(shapeA:CPShape, shapeB:CPShape, contacts:CPContact[], normalCoefici
 	about: This handler will be used any time an object with this @type collides with another object, regardless of its @type. 
 	A good example is a projectile that should be destroyed the first time it hits anything. 
 	There may be a specific collision handler and two wildcard handlers. 
-	It’s up to the specific handler to decide if and when to call the wildcard handlers and what to do with their return values. (See CallWildcard*()) 
+	Itâ€™s up to the specific handler to decide if and when to call the wildcard handlers and what to do with their return values. (See CallWildcard*()) 
 	When a new wildcard handler is created, the callbacks will all be set to builtin callbacks that perform the default behavior. 
 	(accept all collisions in @beginFunc() and @preSolveFunc(), or do nothing for @postSolveFunc() and @separateFunc().
 	End Rem
@@ -944,10 +947,10 @@ separateFunc(shapeA:CPShape, shapeB:CPShape, contacts:CPContact[], normalCoefici
 			' add it (for reference counting
 			collisionPairs.Insert(collpair, collpair)
 			
-			Local dobegincollision:Int(arb:Byte Ptr, space:Byte Ptr, Data:Object) = _noCollisionI
-			Local dopreSolvecollision:Int(arb:Byte Ptr, space:Byte Ptr, Data:Object) = _noCollisionI
-			Local dopostSolvecollision(arb:Byte Ptr, space:Byte Ptr, Data:Object) = _noCollision
-			Local doseparatecollision(arb:Byte Ptr, space:Byte Ptr, Data:Object) = _noCollision
+			Local dobegincollision:Int(arb:Byte Ptr, space:Byte Ptr, Data:Object) = AlwaysCollide
+			Local dopreSolvecollision:Int(arb:Byte Ptr, space:Byte Ptr, Data:Object) = AlwaysCollide
+			Local dopostSolvecollision(arb:Byte Ptr, space:Byte Ptr, Data:Object) = DoNothing
+			Local doseparatecollision(arb:Byte Ptr, space:Byte Ptr, Data:Object) = DoNothing
 			If beginFunc
 				dobegincollision = _dobeginCollision
 			EndIf
@@ -991,16 +994,16 @@ separateFunc(shapeA:CPShape, shapeB:CPShape, contacts:CPContact[], normalCoefici
 				
 			If Not (beginFunc Or preSolveFunc Or postSolveFunc Or separateFunc) Then
 				collisionPairs.remove(collpair)
-				bmx_cpspace_setdefaultcollisionpairfunc(cpObjectPtr, _noCollisionI, Null, _noCollisionI, _noCollision, _noCollision)
+				bmx_cpspace_setdefaultcollisionpairfunc(cpObjectPtr, AlwaysCollide, Null, AlwaysCollide, DoNothing, DoNothing)
 			Else
 			
 				' add it (for reference counting
 				collisionPairs.insert(collpair, collpair)
 
-				Local dobegincollision:Int(arb:Byte Ptr, space:Byte Ptr, Data:Object) = _noCollisionI
-				Local dopreSolvecollision:Int(arb:Byte Ptr, space:Byte Ptr, Data:Object) = _noCollisionI
-				Local dopostSolvecollision(arb:Byte Ptr, space:Byte Ptr, Data:Object) = _noCollision
-				Local doseparatecollision(arb:Byte Ptr, space:Byte Ptr, Data:Object) = _noCollision
+				Local dobegincollision:Int(arb:Byte Ptr, space:Byte Ptr, Data:Object) = AlwaysCollide
+				Local dopreSolvecollision:Int(arb:Byte Ptr, space:Byte Ptr, Data:Object) = AlwaysCollide
+				Local dopostSolvecollision(arb:Byte Ptr, space:Byte Ptr, Data:Object) = DoNothing
+				Local doseparatecollision(arb:Byte Ptr, space:Byte Ptr, Data:Object) = DoNothing
 				If beginFunc
 					dobegincollision = _dobeginCollision
 				EndIf
@@ -1060,13 +1063,10 @@ separateFunc(shapeA:CPShape, shapeB:CPShape, contacts:CPContact[], normalCoefici
 	persistence, requiring an order of magnitude fewer iterations To resolve the collisions in the usual case.
 	End Rem
 	Method DoStep(dt:Double)
-		?ios
 		If ENABLE_HASTY
-			ENABLE_HASTY = 0
-		End If
-		?
-		If ENABLE_HASTY
+		?Not ios
 			cpHastySpaceStep(cpObjectPtr, dt)
+		?
 		Else
 			cpSpaceStep(cpObjectPtr, dt)
 		EndIf
@@ -1092,7 +1092,7 @@ End Method
 
 	Rem
 	bbdoc: Starts an iteration over every body of this space, calling @callback For each.
-	about: Sleeping bodies are included, but static and kinematic bodies are not as they aren’t added to the space.
+	about: Sleeping bodies are included, but static and kinematic bodies are not as they arenâ€™t added to the space.
 	End Rem
 	Method EachBody(callback(obj:Object, data:Object), data:Object = Null)
 		
@@ -1239,14 +1239,11 @@ End Method
 	bbdoc: Frees the CPSpace And all dependencies.
 	End Rem
 	Method Free()
-		?ios
-		If ENABLE_HASTY
-			ENABLE_HASTY = 0
-		End If
-		?
 		If cpObjectPtr Then
 			If ENABLE_HASTY
+			?Not ios
 				cpHastySpaceFree(cpObjectPtr)
+			?
 			Else
 				cpSpaceFree(cpObjectPtr)
 			EndIf
@@ -1337,7 +1334,7 @@ Rem
 bbdoc: A 2D vector
 End Rem
 Type CPVect
-	Field vecPtr:Byte Ptr
+	Field vecPtr:Double Ptr
 	
 	Field x:Double
 	Field y:Double
@@ -1384,6 +1381,7 @@ Type CPVect
 	Method Delete()
 		If vecPtr Then
 			bmx_cpvect_delete(vecPtr)
+			cpunbind(vecPtr)
 			vecPtr = Null
 		End If
 	End Method
@@ -1503,6 +1501,14 @@ Type CPVect
 	End Method
 
 	Rem
+	bbdoc: Returns the squared distance between @Self and @v2.
+	about: Faster than CPVect.Dist() when you only need to compare distances.
+	end rem
+	Method DistSq:Double(v2:CPVect)
+		Return bmx_cpvect_distsq(vecPtr, v2.vecPtr)
+	End Method
+
+	Rem
 	bbdoc: Returns true if the distance between @Self and @v2 is less than @dist.
 	End Rem
 	Method Near:Int(v2:CPVect, dist:Double)
@@ -1535,7 +1541,7 @@ about: Stored as left, bottom, right, top values.
 End Rem
 Type CPBB
 
-	Field bbPtr:Byte Ptr
+	Field bbPtr:Double Ptr
 	
 	Field l:Double, b:Double, r:Double, t:Double
 	
@@ -1544,10 +1550,7 @@ Type CPBB
 	End Rem
 	Method Create:CPBB(l:Double, b:Double, r:Double, t:Double)
 		bbPtr = bmx_cpbb_create(l, b, r, t)
-		Self.l = l
-		Self.b = b
-		Self.r = r
-		Self.t = t
+		_Update
 		Return Self
 	End Method
 	
@@ -1561,15 +1564,25 @@ Type CPBB
 	End Function
 	
 	Rem
-	bbdoc:  Constructs a cpBB centered on a point with the given extents (half sizes).
+	bbdoc: Convenience constructor for making a CPBB fitting with a center point and half width and height.
 	end rem
 	Method NewForExtents:CPBB(c:CPVect, hw:Double, hh:Double)
 	    Return Create(c.x - hw, c.y - hh, c.x + hw, c.y + hh)
 	End Method
 
+	Rem
+	bbdoc: Convenience constructor for making a CPBB fitting a circle at position @p with radius @r.
+	end rem
+	Method NewForCircle:CPBB(p:CPVect, r:Double)
+	    Return NewForExtents(p, r, r)
+	End Method
+
 	Method _Update()
 		If bbPtr
-			bmx_cpbb_update Self.bbPtr, VarPtr(l), VarPtr(b), VarPtr(r), VarPtr(t)
+			l = bbPtr[0]
+			b = bbPtr[1]
+			r = bbPtr[2]
+			t = bbPtr[3]
 		End If
 	End Method
 	
@@ -1650,7 +1663,7 @@ Type CPShape Extends CPObject
 	bbdoc: The bounding box of the shape.
 	about: Only guaranteed to be valid after CacheBB() or DoStep() is called. 
 	Moving a body that a shape is connected to does not update its bounding box. 
-	For shapes used for queries that aren’t attached to bodies, you can also use Update().
+	For shapes used for queries that arenâ€™t attached to bodies, you can also use Update().
 	End Rem
 	Method GetBB:CPBB()
 		Return CPBB._create(bmx_cpshape_getbb(cpObjectPtr))
@@ -1985,8 +1998,8 @@ End Type
 
 Type TFuncCallback
 
-	Field callback(obj:Object, data:Object)
-	Field data:Object
+	Field callback(obj:Object, Data:Object)
+	Field Data:Object
 	
 End Type
 
@@ -1995,6 +2008,19 @@ bbdoc: The spatial index is Chipmunk's Default spatial index type.
 about: 
 End Rem
 Type CPSpatialIndex Extends cpObject
+
+	Rem
+	bbdoc: Allocate and initialize a spatial hash.
+	EndRem
+	Method Create:CPSpatialIndex(celldim:Double, cells:Int, bbfunc:Double ptr(obj:Object), staticIndex:CPSpatialIndex)
+		If staticIndex
+			parent = staticIndex.parent
+			cpobjectptr = cpSpaceHashNew(celldim, cells, bbfunc, staticIndex.cpObjectPtr)
+		Else
+			cpobjectptr = cpSpaceHashNew(celldim, cells, bbfunc, Null)
+		End If
+		Return Self'Bind(cpobjectptr)
+	End Method
 
 	Function _create:CPSpatialIndex(cpObjectPtr:Byte Ptr)
 		If cpObjectPtr Then
@@ -2011,17 +2037,25 @@ Type CPSpatialIndex Extends cpObject
 	End Method
 
 	Rem
+	bbdoc: Destroy and free a spatial index.
+	EndRem
+	Method Free()
+'		cpunbind(cpObjectPtr)
+		cpSpatialIndexFree(cpObjectPtr)
+		cpObjectPtr = Null
+	End Method
+	
+	Rem
 	bbdoc: Iterate over the objects in the hash, calling @callback for each.
 	about: @data is some optional user data that will be passed to @callback.
 	End Rem
-	Method ForEach(callback(obj:Object, data:Object), data:Object = Null)
-	    Local space:Byte Ptr = parent.cpObjectPtr
-    Local cb:TFuncCallback = New TFuncCallback
-    cb.callback = callback
-    cb.data = data
-
-    cpSpaceEachShape(space, hashCallback, cb)
-End Method
+	Method ForEach(callback(obj:Object, Data:Object), Data:Object = Null)
+	    Local cb:TFuncCallback = New TFuncCallback
+	    cb.callback = callback
+	    cb.data = data
+	
+	    bmx_cpspatialindex_each(cpObjectPtr, hashCallback, cb)
+	End Method
 	
 	Function hashCallback(obj:Byte Ptr, callbackData:Object)
 		If TFuncCallback(callbackData) Then
@@ -2029,6 +2063,46 @@ End Method
 		End If
 	End Function
 
+	Rem
+	bbdoc: Add an object to a spatial index.
+	about: Most spatial indexes use hashed storage, so you must provide a hash value too.
+	End Rem
+?Linux Or MacOs Or ios
+	Method Insert(obj:Object, hashid:Int)
+?Not (Linux Or MacOs Or ios)
+	Method Insert(obj:Object, hashid:uint)
+?
+		bmx_cpspatialindex_insert(cpObjectPtr, obj, hashid)
+	End Method
+	
+	Rem
+	bbdoc: Remove an object from a spatial index.
+	about: Most spatial indexes use hashed storage, so you must provide a hash value too.
+	End Rem
+?Linux Or MacOs Or ios
+	Method Remove(obj:Object, hashid:Int)
+?Not (Linux Or MacOs Or ios)
+	Method Remove(obj:Object, hashid:uint)
+?
+		bmx_cpspatialindex_remove(cpObjectPtr, obj, hashid)
+	End Method
+	
+	Rem
+	bbdoc: Perform a rectangle query against the spatial index, calling @func for each potential match.
+	End Rem
+	Method Query(obj:Object, bb:CPBB, func(obj1:Object, obj2:Double ptr, id:uint, Data:Byte ptr), Data:Byte ptr)
+		Local cb:TQueryFuncCallback = New TQueryFuncCallback
+		cb.callback = func
+		cb.data = data
+
+		bmx_cpspatialindex_query(cpObjectPtr, obj, bb.bbPtr, QueryFuncCallback, cb)
+	End Method
+	
+	Function QueryFuncCallback(obj1:Byte ptr, obj2:Double ptr, id:uint, callbackData:Object)
+		If TQueryFuncCallback(callbackData) Then
+			TQueryFuncCallback(callbackData).callback(cpfind(obj1), obj2, id, TQueryFuncCallback(callbackData).Data)
+		End If
+	End Function
 End Type
 
 Rem
@@ -2329,7 +2403,7 @@ bbdoc: A standard 0,0 vector.
 End Rem
 Global CPVZero:CPVect = CPVect._create(bmx_cpvect_cpvzero())
 
-Extern	' This block handles CPObject arrays
+Extern	' This block handles Object arrays
 	Function bmx_momentforpoly:Double(m:Double, verts:CPVect[], Count:Int, offset:Byte Ptr, radius:Double)
 	Function bmx_cppolyshape_create:Byte Ptr(Handle:Object, body:Byte Ptr, verts:CPVect[], Count:Int, offset:Byte Ptr, radius:Double)
 	Function bmx_cppolyshape_getverts(handle:Byte Ptr, verts:CPVect[])
@@ -2394,8 +2468,8 @@ Type cpArbiter
 	about: The value will persist until just after the separate() callback is called for the pair.<br>
 	<p><b>NOTE:</b> If you need to clean up this pointer, you should implement the separate() callback to do it. 
 	Also be careful when destroying the space as there may be active collisions still. 
-	In order to trigger the separate() callbacks and clean up your data, you�ll need to remove all the shapes from the space before disposing of it. 
-	This is something I�d suggest doing anyway. 
+	In order to trigger the separate() callbacks and clean up your data, you’ll need to remove all the shapes from the space before disposing of it. 
+	This is something I’d suggest doing anyway. 
 	See ChipmunkDemo.bmx:ChipmunkDemoFreeSpaceChildren() for an example of how to do it easily.</p>
 	EndRem
 	Method GetUserData:Object()
@@ -2407,8 +2481,8 @@ Type cpArbiter
 	about: The value will persist until just after the separate() callback is called for the pair.<br>
 	<p><b>NOTE:</b> If you need to clean up this pointer, you should implement the separate() callback to do it. 
 	Also be careful when destroying the space as there may be active collisions still. 
-	In order to trigger the separate() callbacks and clean up your data, you�ll need to remove all the shapes from the space before disposing of it. 
-	This is something I�d suggest doing anyway. 
+	In order to trigger the separate() callbacks and clean up your data, you’ll need to remove all the shapes from the space before disposing of it. 
+	This is something I’d suggest doing anyway. 
 	See ChipmunkDemo.bmx:ChipmunkDemoFreeSpaceChildren() for an example of how to do it easily.</p>
 	EndRem
 	Method SetUserData(Data:Object)
@@ -2472,7 +2546,7 @@ Type cpArbiter
 
 	Rem
 	bbdoc: Replace the contact point set of an @Arbiter. 
-	about: You cannot change the number of contacts, but can change the location, normal or penetration distance. The �Sticky� demo uses this to allow objects to overlap an extra amount. You could also use it in a Pong style game to modify the normal of the collision based on the x-position of the collision even though the paddle is a flat shape.
+	about: You cannot change the number of contacts, but can change the location, normal or penetration distance. The “Sticky” demo uses this to allow objects to overlap an extra amount. You could also use it in a Pong style game to modify the normal of the collision based on the x-position of the collision even though the paddle is a flat shape.
 	EndRem
 	Method SetContactPointSet(Set:CPContact[])
 		bmx_cparbiter_setcontactpointset(cpArbiterPtr, Set)
@@ -2482,7 +2556,7 @@ End Type
 ' -- below added by Hotcakes ------------------------
 
 Rem
-bbdoc: Type used for 2�3 affine transforms in Chipmunk.
+bbdoc: Type used for 2×3 affine transforms in Chipmunk.
 End Rem
 Type CPTransform
 	Field a:Double, b:Double, c:Double, d:Double, tx:Double, ty:Double
@@ -2520,60 +2594,60 @@ DebugStop
 	Rem
 	bbdoc: Get the inverse of a transform matrix.
 	end rem
-	Method Inverse:CPTransform(t:CPTransform)
+	Function Inverse:CPTransform(t:CPTransform)
 	    Local inv_det:Double = 1.0 / (t.a * t.d - t.c * t.b)
-	    Return Create( ..
+	    Return New CPTransform.Create( ..
 	        t.d * inv_det, -t.c * inv_det, (t.c * t.ty - t.tx * t.d) * inv_det,  ..
 	       - t.b * inv_det, t.a * inv_det, (t.tx * t.b - t.a * t.ty) * inv_det ..
 	    )
-	End Method
+	End Function
 	
 	Rem
 	bbdoc: Multiply two transformation matrices.
 	end rem
-	Method Mult:CPTransform(t1:CPTransform, t2:CPTransform)
-	    Return Create( ..
+	Function Mult:CPTransform(t1:CPTransform, t2:CPTransform)
+	    Return New CPTransform.Create( ..
 	        t1.a * t2.a + t1.c * t2.b, t1.a * t2.c + t1.c * t2.d, t1.a * t2.tx + t1.c * t2.ty + t1.tx,  ..
 	        t1.b * t2.a + t1.d * t2.b, t1.b * t2.c + t1.d * t2.d, t1.b * t2.tx + t1.d * t2.ty + t1.ty ..
 	    )
-	End Method
+	End Function
 	
 	Rem
 	bbdoc: Transform an absolute point. (i.e. a vertex)
 	end rem
-	Method Point:CPVect(t:CPTransform, p:CPVect)
+	Function Point:CPVect(t:CPTransform, p:CPVect)
 	    Return Vec2(t.a * p.x + t.c * p.y + t.tx, t.b * p.x + t.d * p.y + t.ty)
-	End Method
+	End Function
 		
 	Rem
 	bbdoc: Create a transation matrix.
 	end rem
-	Method Translate:CPTransform(Translate:CPVect)
-	    Return Create( ..
+	Function Translate:CPTransform(Translate:CPVect)
+	    Return New CPTransform.Create( ..
 	        1.0, 0.0, Translate.x,  ..
 	        0.0, 1.0, Translate.y ..
 	    )
-	End Method
+	End Function
 	
 	Rem
 	bbdoc: Create a scale matrix.
 	end rem
-	Method Scale:CPTransform(scaleX:Double, scaleY:Double)
-	    Return Create( ..
+	Function Scale:CPTransform(scaleX:Double, scaleY:Double)
+	    Return New CPTransform.Create( ..
 	        scaleX, 0.0, 0.0,  ..
 	        0.0, scaleY, 0.0 ..
 	    )
-	End Method
+	End Function
 	
 	Rem
 	bbdoc: Miscellaneous (but useful) transformation matrice.
 	end rem
-	Method Ortho:CPTransform(bb:CPBB)
-	    Return Create( ..
+	Function Ortho:CPTransform(bb:CPBB)
+	    Return New CPTransform.Create( ..
 	        2.0 / (bb.r - bb.l), 0.0, -(bb.r + bb.l) / (bb.r - bb.l),  ..
 	        0.0, 2.0 / (bb.t - bb.b), -(bb.t + bb.b) / (bb.t - bb.b) ..
 	    )
-	End Method
+	End Function
 	
 End Type
 
@@ -2583,6 +2657,15 @@ end rem
 Function Clamp:Double(f:Double, Min:Double, Max:Double)
 	Return bmx_cpf_clamp(f, Min, Max)
 End Function
+
+Rem
+bbdoc: Clamp @f to be between 0 and 1.
+end rem
+Function Clamp01:Double(f:Double)
+	Return bmx_cpf_clamp01(f)
+End Function
+
+
 
 Rem
 bbdoc: Linearly interpolate between @f1 and @f2.
@@ -2597,6 +2680,8 @@ end rem
 Function lerpconst:Double(f1:Double, f2:Double, d:Double)
 	Return bmx_cpf_lerpconst(f1, f2, d)
 End Function
+
+
 
 Rem
 bbdoc: Calculate the moment of inertia for a line segment.
@@ -2700,7 +2785,7 @@ Type CPDampedSpring Extends CPConstraint
 
 	Rem
 	bbdoc: Defined much like a slide joint.
-	about: @restLength is the distance the spring wants to be, @stiffness is the spring constant (<a href="http://en.wikipedia.org/wiki/Young's_modulus">Young’s modulus</a>), and @damping is how soft to make the damping of the spring.
+	about: @restLength is the distance the spring wants to be, @stiffness is the spring constant (<a href="http://en.wikipedia.org/wiki/Young's_modulus">Youngâ€™s modulus</a>), and @damping is how soft to make the damping of the spring.
 	End Rem
 	Method Create:CPDampedSpring(a:CPBody, b:CPBody, anchor1:CPVect, anchor2:CPVect, rlen:Double, k:Double, dmp:Double, dt:Double = Null)
 		cpObjectptr = bmx_cpdampedspring(Self, a.cpObjectPtr, b.cpObjectPtr, anchor1.vecPtr, anchor2.vecPtr, rlen, k, dmp, dt)
@@ -2760,7 +2845,7 @@ Type CPRotaryLimitJoint Extends CPConstraint
 	Rem
 	bbdoc: Constrains the relative rotations of two bodies.
 	about: @min and @max are the angular limits in radians. 
-	It is implemented so that it�s possible to for the range to be greater than a full revolution.
+	It is implemented so that it’s possible to for the range to be greater than a full revolution.
 	End Rem
 	Method Create:CPRotaryLimitJoint(a:CPBody, b:CPBody, Min:Double, Max:Double)
 		cpObjectptr = bmx_cprotarylimitjoint_new(Self, a.cpObjectPtr, b.cpObjectPtr, Min, Max)
@@ -2772,7 +2857,7 @@ Type CPRatchetJoint Extends CPConstraint
 
 	Rem
 	bbdoc: Works like a socket wrench.
-	about: @ratchet is the distance between �clicks�, @phase is the initial offset to use when deciding where the ratchet angles are.
+	about: @ratchet is the distance between “clicks”, @phase is the initial offset to use when deciding where the ratchet angles are.
 	End Rem
 	Method Create:CPRatchetJoint(a:CPBody, b:CPBody, phase:Double, Ratchet:Double)
 		cpObjectptr = bmx_cpratchetjoint_new(Self, a.cpObjectPtr, b.cpObjectPtr, phase, Ratchet)
@@ -2785,7 +2870,7 @@ Type CPGearJoint Extends CPConstraint
 	Rem
 	bbdoc: Keeps the angular velocity ratio of a pair of bodies constant.
 	about: @ratio is always measured in absolute terms. 
-	It is currently not possible to set the ratio in relation to a third body’s angular velocity. 
+	It is currently not possible to set the ratio in relation to a third bodyâ€™s angular velocity. 
 	@phase is the initial angular offset of the two bodies.
 	End Rem
 	Method Create:CPGearJoint(a:CPBody, b:CPBody, phase:Double, ratio:Double)
@@ -2819,43 +2904,55 @@ Type CPSimpleMotor Extends CPConstraint
 
 End Type
 
+
+
+Rem
+bbdoc: Spatial query callback function type.
+EndRem
+Type TQueryFuncCallback
+	Field callback(obj1:Object, obj2:Double ptr, id:uint, Data:Byte ptr)
+	Field Data:Byte ptr
+End Type
+
+
+
 Rem
 bbdoc: Point queries are useful for things like mouse picking and simple sensors.
 about: They allow you to check if there are shapes within a certain distance of a point, find the closest point on a shape to a given point or find the closest shape to a point.
 Nearest point queries return the point on the surface of the shape as well as the distance from the query point to the surface point.
 end rem
 Type CPPointQueryInfo
-'	/// The nearest shape, NULL if no shape was within range.
+'	The nearest shape, NULL if no shape was within range.
     Field shape:Byte Ptr
-'	/// The closest point on the shape's surface. (in world space coordinates)
+'	The closest point on the shape's surface. (in world space coordinates)
     Field pointX:Double
 	Field pointY:Double
-'	/// The distance to the point. The distance is negative if the point is inside the shape.
+'	The distance to the point. The distance is negative if the point is inside the shape.
     Field distance:Double
-'	/// The gradient of the signed distance function.
-'	/// The value should be similar to info.p/info.d, but accurate even for very small values of info.d.
+'	The gradient of the signed distance function.
+'	The value should be similar to info.p/info.d, but accurate even for very small values of info.d.
     Field gradientX:Double
 	Field gradientY:Double
 End Type
 
 Rem
 bbdoc: Segment queries are like ray casting, but because not all spatial indexes allow processing infinitely long ray queries it is limited to segments. 
-about: In practice this is still very fast and you don’t need to worry too much about the performance as long as you aren’t using extremely long segments for your queries.
+about: In practice this is still very fast and you donâ€™t need to worry too much about the performance as long as you arenâ€™t using extremely long segments for your queries.
 Segment queries return more information than just a simple yes or no, they also return where a shape was hit and its surface normal at the hit point. 
 t is the percentage between the query start and end points. 
 If you need the hit point in world space or the absolute distance from start, see the segment query helper functions farther down. 
 If a segment query starts within a shape it will have t = 0 and n = CPVZero.
 end rem
 Type CPSegmentQueryInfo
-'	/// The shape that was Hit, Or Null If no collision occured.
+'	The shape that was Hit, Or Null If no collision occured.
 	Field shape:Byte Ptr
-'	/// The point of impact.
+'	The point of impact.
 	Field pointX:Double
 	Field pointY:Double
-'	/// The normal of the surface hit.
+'	The normal of the surface hit.
 	Field normalX:Double
 	Field normalY:Double
-'	/// The normalized distance along the query segment in the range [0, 1].
+'	The normalized distance along the query segment in the range [0, 1].
 	Field Alpha:Double
 End Type
 
@@ -2891,42 +2988,4 @@ Type CPArray Extends CPObject
 
 End Type
 
-?Not ios
-Type CPHastySpace Extends CPSpace
-
-	Rem
-	bbdoc: /// Create a new hasty space.
-	about: /// Currently Chipmunk is limited to 2 threads as using more generally provides very minimal performance gains.
-	/// Passing 0 as the thread count on OS X will cause Chipmunk to automatically detect the number of threads it should use.
-	/// On other platforms passing 0 for the thread count will set 1 thread.
-	End Rem
-	Method Create:CPSpace()
-		cpObjectPtr = bmx_cphastyspace_new(Self)
-		Return Self
-	End Method
-	
-	Method Free()
-		If Self.cpObjectPtr Then
-			cpHastySpaceFree(Self.cpObjectPtr)
-			Self.cpObjectPtr = Null
-		End If
-	End Method
-
-	Rem
-	bbdoc: /// Set the number of @threads to use for the solver.
-	about: /// On ARM platforms that support NEON, this will enable the vectorized solver.
-	/// CPHastySpace also supports multiple threads, but runs single threaded by default for determinism.
-	End Rem
-	Method SetThreads(threads:ulong)
-		cpHastySpaceSetThreads(cpObjectPtr, threads)
-	End Method
-
-	Rem
-	bbdoc: /// When stepping a hasty space, you must use this function.
-	End Rem
-	Method DoStep(dt:Double)
-		cpHastySpaceStep(cpObjectPtr, dt)
-	End Method
-	
-End Type
-?
+Include "chipmunkpro.bmx"

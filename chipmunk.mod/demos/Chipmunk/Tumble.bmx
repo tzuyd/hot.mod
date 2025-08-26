@@ -81,7 +81,7 @@ End Function
 
 ' Function to initialize the space
 Function initSpace:CPSpace()
-	init()
+	space = New CPSpace.Create()
     ' Create a new space
     space.SetGravity(Vec2(0, 600))
     
@@ -147,7 +147,6 @@ End Function
 Function destroySpace(space:CPSpace)
     ChipmunkDemoFreeSpaceChildren(space)
     space.Free()
-	CleanUp
 End Function
 
 ' Initialize the ChipmunkDemo
@@ -159,17 +158,3 @@ Global Tumble:ChipmunkDemo = New ChipmunkDemo( ..
     ChipmunkDemoDefaultDrawImpl,  ..
     destroySpace ..
 , 4)
-
-' Start the demo
-    RunDemo(demo_index)
-
-While Not KeyDown(KEY_ESCAPE)
-
-	Cls
-	
-	display()
-	event()
-
-Wend
-
-End

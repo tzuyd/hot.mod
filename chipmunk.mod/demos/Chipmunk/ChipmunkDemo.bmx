@@ -1,4 +1,4 @@
-﻿
+
 Rem Copyright (c) 2007 Scott Lembcke
  * 
  * Permission is hereby granted, free of charge, to any person obtaining a copy
@@ -55,15 +55,13 @@ Rem Copyright (c) 2007 Scott Lembcke
 
 SuperStrict
 
-' Import Chipmunk library
 Import hot.chipmunk
 
 Import "ChipmunkDebugDraw.bmx"
 Import "ChipmunkDemoTextSupport.bmx"
 
-' ChipmunkDemo structure definition
 Type ChipmunkDemo
-    Field name:String
+    Field Name:String
     Field timestep:Double
     
     Field initFunc:CPSpace()
@@ -79,7 +77,8 @@ Type ChipmunkDemo
 		Self.drawFunc = drawFunc
 		Self.destroyFunc = destroyFunc
 		demo_index = Index
-		demos[demo_index] = Self
+		If Index < 0 Then Index = 0
+		demos[0] = Self	' Index] = Self
 		demo_count:+1
 		Main()
 	End Method
@@ -257,11 +256,11 @@ Function init()
 End Function
 
 Function DrawInstructions()
-    Local title:String = "Demo(" + Chr(65 + demo_index) + "): " + demos[demo_index].Name
+    Local title:String = "Demo(" + Chr(65 + demo_index) + "): " + demos[0].Name	' demo_index].Name
     ChipmunkDemoTextDrawString(Vec2(-300, 220), title)
     
     Local controlInfo:String = "Controls:~n" + ..
-        "A - Z Switch demos. (return restarts)~n" + ..
+        "                    (space restarts)~n" + ..
         "Use the mouse to grab objects.~n"
     
     ChipmunkDemoTextDrawString(Vec2(-300, 200), controlInfo)
@@ -334,7 +333,7 @@ Function Tick(dt:Double)
         mouse_body.SetVelocity new_point.Sub(mouse_body.GetPosition()).Mult(60.0)
         mouse_body.SetPosition new_point
 
-        demos[demo_index].updateFunc(space, dt)
+        demos[0].updateFunc(space, dt)	' demo_index].updateFunc(space, dt)
         
         ChipmunkDemoTicks :+ 1
         ChipmunkDemoTime :+ dt
@@ -348,7 +347,7 @@ Function Update()
     dt = time - LastTime
     If dt > 0.2 Then dt = 0.2
     
-    Local fixed_dt:Double = demos[demo_index].timestep
+    Local fixed_dt:Double = demos[0].timestep	' demo_index].timestep
     
     Accumulator :+ dt
     While Accumulator > fixed_dt
@@ -375,9 +374,9 @@ Function Display()
     ' Save the drawing commands from the most recent tick.
     bmx_drawpushrenderer()
     ChipmunkDemoTextPushRenderer()
-    demos[demo_index].drawFunc(space)
+    demos[0].drawFunc(space)	' demo_index].drawFunc(space)
     
-'   // Highlight the shape under the mouse because it looks neat.
+'   Highlight the shape under the mouse because it looks neat.
     Local nearest:CPShape = Space.PointQueryNearest(ChipmunkDemoMouse, 0.0, CP_ALL_CATEGORIES, Null)
     If(nearest)
 	    Local drawOptions:bmx_drawoptions = New bmx_drawoptions
@@ -388,10 +387,11 @@ Function Display()
     
     ' Draw the renderer contents and reset it back to the last tick's state.
     bmx_drawflushrenderer()
-    
+
     Update()
     
-    ' // Now render all the UI text.
+    
+    ' Now render all the UI text.
     DrawInstructions()
     DrawInfo()
         ChipmunkDemoTextDrawString(Vec2(-300, -200), ChipmunkDemoMessageString)
@@ -417,7 +417,7 @@ Function RunDemo(Index:Int = Null)
     max_arbiters = 0
     max_points = 0
     max_constraints = 0
-    space = demos[demo_index].initFunc()
+    space = demos[0].initFunc()	' demo_index].initFunc()
 	init()
 End Function
 
@@ -426,9 +426,9 @@ Function Keyboard()
     Local scale_increment:Float = 1.2
 
     If KeyHit(KEY_SPACE)
-        demos[demo_index].destroyFunc(space)
+        demos[0].destroyFunc(space)	' demo_index].destroyFunc(space)
 		CleanUp
-        RunDemo(demo_index)
+        RunDemo(0)	' demo_index)
     ElseIf KeyHit(KEY_TILDE)
         paused = Not paused
     ElseIf KeyHit(KEY_1)
@@ -526,16 +526,17 @@ Function CleanUp()
 	
 End Function
 
+'    Graphics (1024, 768, 0,, GRAPHICS_BACKBUFFER | GRAPHICS_ALPHABUFFER)
+Function Main:Int()
+    AppTitle = "Demo(" + Chr(97 + demo_index) + "): " + demos[0].Name	' demo_index].Name
     Graphics (1024, 768, 0,, GRAPHICS_BACKBUFFER | GRAPHICS_ALPHABUFFER)
 
-Function Main:Int()
-    AppTitle = "Demo(" + Chr(97 + demo_index) + "): " + demos[demo_index].Name
 		RunDemo(demo_index)
 
 		While Not KeyHit(KEY_ESCAPE)
-		
+			If AppTerminate() Then End
 			Display()
-		
+			
 		Wend
 		
 End Function

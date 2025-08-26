@@ -37,7 +37,7 @@ Import "ChipmunkDemo.bmx"
 
 Const COLLISION_TYPE_STICKY:Int = 1
 
-Global STICKY_SENSOR_THICKNESS:Float = 2.5
+Global STICK_SENSOR_THICKNESS:Float = 2.5
 
 Function PostStepAddJoint(unused:Byte Ptr, Key:Object, Data:Object)
 '	DebugLog("Adding joint for " + String(Data))
@@ -47,55 +47,44 @@ Function PostStepAddJoint(unused:Byte Ptr, Key:Object, Data:Object)
 End Function
 
 Function StickyPreSolve:Int(shapeA:CPShape, shapeB:CPShape, contacts:CPContact[], normalCoefficient:Float, Data:Object)
-'	/ / We want To fudge the collisions a bit To allow shapes To overlap more.
-'	// This simulates their squishy sticky surface, and more importantly
-'	// keeps them from separating and destroying the joint.
-	
-'	// Track the deepest collision point and use that to determine if a rigid collision should occur.
+    ' Track the deepest collision point and use that to determine if a rigid collision should occur.
     Local deepest:Double = INFINITY
-    
-'	/ / Grab the contact Set And iterate over them.
-    For Local i:Int = 0 Until contacts.Length
-'		/ / Sink the contact points into the surface of each shape.
-        contacts[i].setr1(contacts[i].GetR1().Sub(contacts[i].GetNormal().Mult(STICKY_SENSOR_THICKNESS)))
-        contacts[i].SetR2(contacts[i].GetR2().Sub(contacts[i].GetNormal().Mult(STICKY_SENSOR_THICKNESS)))
-        deepest = Min(deepest, contacts[i].GetDistance())
-    Next
 
-'	/ / Set the New contact Point Data.
-	cpArbiter(Data).SetContactPointSet(contacts)
-    
-'	/ / If the shapes are overlapping enough, Then Create a
-'	// joint that sticks them together at the first contact point.
-    If Not cpArbiter(Data).GetUserData() And deepest >= 0.0
-        Local bodyA:CPBody = Shapea.GetBody()
-        Local bodyB:CPBody = Shapeb.GetBody()
-        
-'		/ / Create a joint at the contact Point To hold the body in place.
-        Local anchorA:CPVect = Bodya.World2Local(contacts[0].GetR1())
-        Local anchorB:CPVect = Bodyb.World2Local(contacts[0].GetR2())
-        Local joint:CPPivotJoint = New CPPivotJoint.Create(bodyA, bodyB, anchorA, anchorB)
- 
-' 		/ / Give it a finite force For the stickyness.
-        joint.SetMaxForce(3e3)
-
-'		/ / Schedule a Post - Step() callback To Add the joint.
-        space.AddPostStepCallback(PostStepAddJoint, joint, Null)
-		
-'		/ / Store the joint on the arbiter so we can Remove it later.
-        cpArbiter(Data).SetUserData(joint)
-    End If
-    
-'	/ / Position correction And velocity are handled separately so changing
-'	// the overlap distance alone won't prevent the collision from occuring.
-'	// Explicitly the collision for this frame if the shapes don't overlap using the new distance.
-    Return deepest >= 0.0
+	If cpArbiter(Data).GetUserData() = Null
+	    ' Grab the contact set and iterate over them.
+	    For Local i:Int = 0 Until contacts.Length
+	        ' Sink the contact points into the surface of each shape.
+	        contacts[i].SetR1(contacts[i].GetR1().Sub(contacts[i].GetNormal().Mult(-STICK_SENSOR_THICKNESS)))
+	        contacts[i].SetR2(contacts[i].GetR2().Add(contacts[i].GetNormal().Mult(-STICK_SENSOR_THICKNESS)))
+	        deepest = Min(deepest, contacts[i].GetDistance())
+	    Next
 	
-'	// Lots more that you could improve upon here as well:
-'	// * Modify the joint over time to make it plastic.
-'	// * Modify the joint in the post-step to make it conditionally plastic (like clay).
-'	// * Track a joint for the deepest contact point instead of the first.
-'	/ / * Track a joint For each contact Point.(more complicated since you only Get one Data pointer).
+	    ' If the shapes are overlapping enough, then create a
+	    ' joint that sticks them together at the first contact point.
+	    If Not cpArbiter(Data).GetUserData() And deepest >= 0.0
+	        Local bodyA:CPBody = ShapeA.GetBody()
+	        Local bodyB:CPBody = ShapeB.GetBody()
+	        
+	        ' Create a joint at the contact point to hold the body in place.
+	        Local anchorA:CPVect = BodyA.World2Local(bodyA.GetPosition().Add(contacts[0].GetR1()))
+	        Local anchorB:CPVect = BodyB.World2Local(bodyB.GetPosition().Add(contacts[0].GetR2()))
+			Local joint:CPPivotJoint = New CPPivotJoint.Create(bodyA, bodyB, anchorA, anchorB)
+	 
+	        ' Give it a finite force for the stickiness.
+	        joint.SetMaxForce(3e3)
+
+	        ' Schedule a post-step callback to add the joint.
+	        space.AddPostStepCallback(PostStepAddJoint, joint, Null)
+			
+	        ' Store the joint on the arbiter so we can remove it later.
+	        cpArbiter(Data).SetUserData(joint)
+		EndIf
+    EndIf
+    
+    ' Position correction and velocity are handled separately so changing
+    ' the overlap distance alone won't prevent the collision from occurring.
+    ' Explicitly the collision for this frame if the shapes don't overlap using the new distance.
+    Return deepest >= 0.0
 End Function
 
 Function PostStepRemoveJoint(unused:Byte Ptr, Key:Object, Data:Object)
@@ -106,26 +95,26 @@ Function PostStepRemoveJoint(unused:Byte Ptr, Key:Object, Data:Object)
 End Function
 
 Function StickySeparate(shapeA:CPShape, shapeB:CPShape, contacts:CPContact[], normalCoefficient:Float, Data:Object)
-    Local joint:CPConstraint = CPConstraint(cpArbiter(Data).GetUserData())
+    Local joint:CPPivotJoint = CPPivotJoint(cpArbiter(Data).GetUserData())
     If joint
-'		/ / The joint won't be removed until the step is done.
-'		// Need to disable it so that it won't apply itself.
-'		// Setting the force to 0 will do just that
-        joint.SetMaxForce(0.0)
+	'		/ / The joint won't be removed until the step is done.
+	'		// Need to disable it so that it won't apply itself.
+	'		// Setting the force to 0 will do just that
+	        joint.SetMaxForce(0.0)
 
-'		/ / perform the removal in a Post - Step() callback.
-        space.AddPostStepCallback(PostStepRemoveJoint, joint, Null)
-
-'		/ / Null out the reference To the joint.
-'		// Not required, but it's a good practice.
-        cpArbiter(Data).SetUserData(Null)
+	'		/ / perform the removal in a Post - Step() callback.
+	        space.AddPostStepCallback(PostStepRemoveJoint, joint, Null)
+	
+	'		/ / Null out the reference To the joint.
+	'		// Not required, but it's a good practice.
+	        cpArbiter(Data).SetUserData(Null)
     End If
 End Function
 
 Function StickyInit:CPSpace()
     ChipmunkDemoMessageString = "Sticky collisions using the cpArbiter data pointer."
-
-    init()
+	
+    space = New CPSpace.Create()
     space.SetIterations(10)
     space.SetGravity(Vec2(0, 1000))
     space.SetCollisionSlop(2.0)
@@ -166,7 +155,7 @@ Function StickyInit:CPSpace()
 		space.AddBody(body)
         Body.SetPosition(Vec2(Lerp(-150.0, 150.0, Rnd()), Lerp(-150.0, 150.0, Rnd())))
         
-        Local shape:CPCircleShape = New CPCircleShape.Create(body, radius + STICKY_SENSOR_THICKNESS, CPVZero)
+        Local shape:CPCircleShape = New CPCircleShape.Create(body, radius + STICK_SENSOR_THICKNESS, CPVZero)
 		space.AddShape(shape)
         Shape.SetFriction(0.9)
         Shape.SetCollisionType(COLLISION_TYPE_STICKY)

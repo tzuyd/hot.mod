@@ -113,7 +113,7 @@ Function make_ball:CPCircleShape(x:Double, y:Double)
 End Function
 
 Function initSpace:CPSpace()
-	init()
+	space = New CPSpace.Create()
 	space.SetIterations(1)
 	
 '	The space will contain a very large number of similarly sized objects.
@@ -161,7 +161,6 @@ End Function
 Function destroySpace(space:CPSpace)
 	ChipmunkDemoFreeSpaceChildren(space)
 	space.Free()
-	CleanUp
 End Function
 
 Global LogoSmash:ChipmunkDemo = New ChipmunkDemo( ..

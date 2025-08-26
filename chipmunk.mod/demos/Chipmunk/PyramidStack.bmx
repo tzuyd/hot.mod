@@ -40,7 +40,7 @@ Function updateSpace(space:CPSpace, dt:Double)
 End Function
 
 Function initSpace:CPSpace()
-	init()
+	space = New CPSpace.Create()
 	space = New CPSpace.Create()
     space.SetIterations(30)
     space.SetGravity(Vec2(0, 100))
@@ -101,7 +101,6 @@ End Function
 Function destroySpace(space:CPSpace)
     ChipmunkDemoFreeSpaceChildren(space)
     space.Free()
-	CleanUp
 End Function
 
 Global PyramidStack:ChipmunkDemo = New ChipmunkDemo( ..
@@ -113,17 +112,3 @@ Global PyramidStack:ChipmunkDemo = New ChipmunkDemo( ..
 	ChipmunkDemoDefaultDrawImpl,  ..
 	destroySpace ..
 , 1)
-	
-    ' Initialize the demo
-    RunDemo(demo_index)
-
-While Not KeyDown(KEY_ESCAPE)
-
-	Cls
-	
-	display()
-	event()
-
-Wend
-
-End

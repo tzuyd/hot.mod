@@ -32,10 +32,7 @@ Framework brl.d3d9max2d
 ' Import Chipmunk library
 Import hot.chipmunk
 
-Import "ChipmunkDemoTextSupport.bmx"
-
-Include "ChipmunkDemo.bmx"
-Include "ChipmunkDebugDraw.bmx"
+Import "ChipmunkDemo.bmx"
 
 Const DENSITY:Double = 1.0 / 10000.0
 
@@ -152,7 +149,7 @@ End Function
 Function InitSpace:CPSpace()
     ChipmunkDemoMessageString = "Right click and drag to slice up the block."
     
-	init()
+	space = New CPSpace.Create()
     space.SetIterations(30)
     space.SetGravity(Vec2(0, 500))
     space.SetSleepTimeThreshold(0.5)
@@ -186,7 +183,6 @@ End Function
 Function DestroySpace(space:CPSpace)
     ChipmunkDemoFreeSpaceChildren(space)
     space.Free()
-	CleanUp
 End Function
 
 Local Slice:ChipmunkDemo = New ChipmunkDemo( ..
@@ -198,17 +194,3 @@ Local Slice:ChipmunkDemo = New ChipmunkDemo( ..
 	ChipmunkDemoDefaultDrawImpl,  ..
 	DestroySpace ..
 , 19)
-
-' Initialize the demo
-RunDemo(demo_index)
-
-While Not KeyDown(KEY_ESCAPE)
-
-	Cls
-	
-	display()
-	event()
-
-Wend
-
-End

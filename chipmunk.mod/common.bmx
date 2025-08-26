@@ -1,4 +1,4 @@
-
+﻿
 ' Copyright (c) 2007-2016 Bruce A Henderson
 ' 
 ' Permission is hereby granted, free of charge, to any person obtaining a copy
@@ -31,7 +31,7 @@ Import "src/cpBody.c"
 Import "src/cpHashSet.c"
 Import "src/cpPolyShape.c"
 Import "src/cpSpace.c"
-Import "src/cpSweep1D.c"
+'Import "src/cpSweep1D.c"	' seemingly unused?
 Import "src/cpArbiter.c"
 Import "src/cpBBTree.c"
 Import "src/cpCollision.c"
@@ -45,7 +45,7 @@ Import "src/cpHastySpace.c"	'causing problems on ios.
 Import "src/cpPolyline.c"
 Import "src/cpRobust.c"
 Import "src/cpSpaceComponent.c"
-Import "src/cpSpaceDebug.c"
+'Import "src/cpSpaceDebug.c"	' replaced with Max code
 Import "src/cpSpaceQuery.c"
 Import "src/cpSpaceStep.c"
 Import "src/cpSpatialIndex.c"
@@ -68,17 +68,17 @@ Extern
 	Function cpunbind(obj:Byte ptr)
 
 	Function bmx_cpf_clamp:Double(f:Double, Min:Double, Max:Double)
+	Function bmx_cpf_clamp01:Double(f:Double)
 	Function bmx_cpf_lerp:Double(f1:Double, f2:Double, t:Double)
 	Function bmx_cpf_lerpconst:Double(f1:Double, f2:Double, d:Double)
 			
 	Function bmx_cpvect_rperp:Byte Ptr(Handle:Byte Ptr)
 	Function bmx_cpvect_lerp:Byte ptr(v1:Byte ptr, v2:Byte ptr, t:Double)
 	Function bmx_cpvect_dist:Double(v1:Byte ptr, v2:Byte ptr)
-	Function bmx_cpvect_near:Int(v1:Byte ptr, v2:Byte ptr, dist:Double)
+	Function bmx_cpvect_distsq:Double(v1:Byte ptr, v2:Byte ptr)
+	Function bmx_cpvect_near:Int(v1:Byte ptr, v2:Byte ptr, Dist:Double)
 	Function bmx_cpvect_forangle:Byte ptr(a:Double)
 	
-	Function bmx_cpbb_update(bbPtr:Byte ptr, l:Byte ptr, b:Byte ptr, r:Byte ptr, t:Byte ptr)
-
 	Function bmx_cpbody_createkinematic:Byte Ptr(Handle:Object)
 	Function bmx_cpbody_getcenterofgravity:Byte ptr(body:Byte ptr)
 	Function cpBodyGetType:Byte Ptr(body:Byte Ptr)
@@ -101,11 +101,6 @@ Extern
 	Function bmx_cpshape_setfilter(Handle:Byte Ptr, Filter:uInt)
 	Function cpShapeGetSpace:Byte ptr(shape:Byte ptr)
 	Function bmx_cpshape_pointquery:Double(shape:Byte ptr, p:Byte ptr, out:Byte ptr)
-?Linux Or MacOs Or ios
-	Function bmx_cpshape_update:Int(cpObjectPtr:Byte Ptr)
-?Not (Linux Or MacOs Or ios)
-	Function bmx_cpshape_update:uint(cpObjectPtr:Byte Ptr)
-?
 
 	Function bmx_cpcircleshape_getoffset:Byte ptr(circleShape:Byte ptr)
 
@@ -189,6 +184,11 @@ Extern
 	Function bmx_cpsimplemotor_new:Byte ptr(Handle:Object, a:Byte ptr, b:Byte ptr, rate:Double)
 	Function cpSimpleMotorSetRate(constraint:Byte ptr, Value:Double)
 
+	Function cpSpaceHashNew:Byte ptr(celldim:Double, cells:Int, bbfunc:Double ptr(obj:Object), staticIndex:Byte ptr)
+	Function cpSpatialIndexFree(Index:Byte ptr)
+	Function bmx_cpspatialindex_each(Index:Byte ptr, func(obj:Byte ptr, Data:Object), Data:Object)
+	Function bmx_cpspatialindex_query(Index:Byte ptr, obj:Byte ptr, bb:Byte ptr, func(obj1:Byte ptr, obj2:Double ptr, id:uint, Data:Object), callbackData:Object)
+	
 	Function cpArbiterIgnore:Int(arb:Byte ptr)
 	Function bmx_cparbiter_getdata:Object(arb:Byte ptr)
 	Function cpArbiterSetUserData(arb:Byte ptr, Data:Object)
@@ -212,10 +212,22 @@ Extern
 	?Not ios
 	Function bmx_cphastyspace_new:Byte ptr(Handle:Object)
 	Function cpHastySpaceFree(space:Byte ptr)
-	Function cpHastySpaceSetThreads(space:Byte ptr, threads:ulong)
+	Function cpHastySpaceSetThreads(space:Byte ptr, threads:Size_T)
 	Function cpHastySpaceStep(space:Byte ptr, dt:Double)
 	?
-	
+		
+?Linux Or MacOs Or ios
+	Function bmx_cpshape_update:Int(cpObjectPtr:Byte Ptr)
+
+	Function bmx_cpspatialindex_insert(Index:Byte ptr, obj:Object, hashid:Int)
+	Function bmx_cpspatialindex_remove(Index:Byte ptr, obj:Object, hashid:Int)
+?Not (Linux Or MacOs Or ios)
+	Function bmx_cpshape_update:uint(cpObjectPtr:Byte Ptr)
+
+	Function bmx_cpspatialindex_insert(Index:Byte ptr, obj:Object, hashid:uint)
+	Function bmx_cpspatialindex_remove(Index:Byte ptr, obj:Object, hashid:uint)
+?
+
 ' -- above added by Hotcakes ------------------------
 
 	Function cpfind:Object(obj:Byte Ptr)
@@ -401,4 +413,4 @@ Const CP_ALL_CATEGORIES:uint = ~0						' /// Value for cpShape.layers signifying
 
 Global CP_PI:Double = ACos(-1.0)	' converts from code designed for radians to BlitzMax compatible degrees
 
-Global ENABLE_HASTY:Int = 0
+Include"commonpro.bmx"

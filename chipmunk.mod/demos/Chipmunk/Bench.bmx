@@ -1,8 +1,9 @@
-﻿
+
 SuperStrict
 
 ' Import required modules
 Framework brl.d3d9max2d
+'Framework brl.glmax2d
 'Import brl.StandardIO
 'Import brl.Max2D
 'Import brl.random
@@ -14,29 +15,31 @@ Import hot.chipmunk
 
 Import "ChipmunkDemo.bmx"
 
+?Not ios
 ENABLE_HASTY = 0
+?
 
-    Function MakeHastySpace:CPSpace()
-        space = New CPSpace.Create()
-        space.SetThreads(0)
-        Return space
-    End Function
-    
-	Function BENCH_SPACE_NEW:CPSpace()
-If ENABLE_HASTY
+Function MakeHastySpace:CPSpace()
+    space = New CPSpace.Create()
+    space.SetThreads(0)
+    Return space
+End Function
+   
+Function BENCH_SPACE_NEW:CPSpace()
+	If ENABLE_HASTY
 		Return MakeHastySpace()
-Else
+	Else
 		Return New CPSpace.Create()
-EndIf
-	End Function
-	
-	Function BENCH_SPACE_FREE(space:CPSpace)
-		space.Free
-	End Function
+	EndIf
+End Function
 
-	Function BENCH_SPACE_STEP(space:CPSpace, dt:Double)
-		space.DoStep(dt)
-	End Function
+Function BENCH_SPACE_FREE(space:CPSpace)
+	space.Free
+End Function
+
+Function BENCH_SPACE_STEP(space:CPSpace, dt:Double)
+	space.DoStep(dt)
+End Function
 
 Const bevel:Double = 1.0
 
@@ -444,7 +447,7 @@ End Function
 
 Function NoCollide_begin:Int(shapeA:CPShape, shapeB:CPShape, contacts:CPContact[], normalCoeficient:Float, Data:Object)
 	Assert("")
-
+	
 	Return True
 End Function
 

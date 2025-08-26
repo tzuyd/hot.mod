@@ -64,7 +64,7 @@ Function add_domino(space:CPSpace, Pos:CPVect, flipped:Int)
 End Function
 
 Function initSpace:CPSpace()
-	init()
+	space = New CPSpace.Create()
     space.SetIterations(30)
     space.SetGravity(Vec2(0, 300))
     space.SetSleepTimeThreshold(0.5)
@@ -114,17 +114,3 @@ Global PyramidTopple:ChipmunkDemo = New ChipmunkDemo( ..
 	ChipmunkDemoDefaultDrawImpl,  ..
 	destroySpace ..
 , 5)
-
-    ' Initialize the demo
-    RunDemo(demo_index)
-
-While Not KeyDown(KEY_ESCAPE)
-
-	Cls
-	
-	display()
-	event()
-
-Wend
-
-End

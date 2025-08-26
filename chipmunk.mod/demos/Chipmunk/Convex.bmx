@@ -1,4 +1,4 @@
-
+﻿
 Rem Copyright (c) 2007 Scott Lembcke
  * 
  * Permission is hereby granted, free of charge, to any person obtaining a copy
@@ -87,7 +87,6 @@ Function updateSpace(space:CPSpace, dt:Double)
 End Function
 
 Function initSpace:CPSpace()
-	init()
 	space = New CPSpace.Create()
     ChipmunkDemoMessageString = "Right click and drag to change the blocks's shape."
     
