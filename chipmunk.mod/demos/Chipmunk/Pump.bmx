@@ -1,4 +1,4 @@
-﻿
+
 Rem Copyright (c) 2007 Scott Lembcke
  * 
  * Permission is hereby granted, free of charge, to any person obtaining a copy
@@ -38,7 +38,7 @@ Import "ChipmunkDemo.bmx"
 Const numBalls:Int = 5
 Global balls:CPBody[numBalls]
 
-Global motor:cpsimplemotor
+Global motor:CPSimpleMotor
 
 Function UpdateSpace(space:CPSpace, dt:Double)
     Local coef:Double = (2.0 + ChipmunkDemoKeyboard.y) / 3.0
@@ -54,7 +54,7 @@ Function UpdateSpace(space:CPSpace, dt:Double)
 	space.DoStep(dt)
 
     For Local i:Int = 0 Until numBalls
-        Local ball:cpBody = balls[i]
+        Local ball:CPBody = balls[i]
         Local Pos:CPVect = ball.GetPosition()
         
         If pos.x > 320.0
@@ -64,7 +64,7 @@ Function UpdateSpace(space:CPSpace, dt:Double)
     Next
 End Function
 
-Function AddBall:cpBody(space:cpSpace, pos:cpVect)
+Function AddBall:CPBody(space:CPSpace, pos:CPVect)
     Local body:CPBody = New CPBody.Create(1.0, MomentForCircle(1.0, 30, 0, CPVZero))
 	Space.AddBody(body)
     body.SetPosition(Pos)
@@ -79,7 +79,6 @@ End Function
 
 Function InitSpace:CPSpace()
     ChipmunkDemoMessageString = "Use the arrow keys to control the machine."
-	ChipmunkDemoMessageString:+"~nBROKEN: Constraints are being initialised at 0,0 and get corrected after one frame,~nhowever that's enough time to push all the elements out of alignment"
     
     space = New CPSpace.Create()
     Space.SetGravity(Vec2(0, 600))
@@ -138,8 +137,9 @@ Function InitSpace:CPSpace()
 	]
 
 	Local plunger:CPBody = New CPBody.Create(1.0, INFINITY)
-	Space.AddBody(plunger)
 	plunger.SetPosition(Vec2(-160, 80))
+	Space.AddBody(plunger)
+	plunger.SetAngle(0.0)      ' force transform rebuild
 	
 	Local polyshap:CPPolyShape = New CPPolyShape.Create(plunger, verts, CPVZero, 0.0)
 	Space.AddShape(polyshap)
@@ -156,7 +156,7 @@ Function InitSpace:CPSpace()
 	Local smallGear:CPBody = New CPBody.Create(10.0, MomentForCircle(10.0, 80, 0, CPVZero))
 	Space.AddBody(smallgear)
 	smallgear.SetPosition(Vec2(-160, 160))
-	smallGear.SetAngle(-Pi / 2.0)
+	smallGear.SetAngle(CP_PI / 2.0)
 
 	Local circshap:CPCircleShape = New CPCircleShape.Create(smallGear, 80.0, CPVZero)
 	Space.AddShape(circshap)
@@ -187,8 +187,9 @@ Function InitSpace:CPSpace()
 	Local bottom:Double = -300.0
 	Local Top:Double = 32.0
 	Local feeder:CPBody = New CPBody.Create(1.0, MomentForSegment(1.0, Vec2(-224.0, -bottom), Vec2(-224.0, -Top), 0.0))
-	Space.AddBody(feeder)
 	feeder.SetPosition(Vec2(-224, -((bottom + Top) / 2.0)))
+	Space.AddBody(feeder)
+	feeder.SetAngle(0.0)      ' force transform rebuild
 	
 	Local Leng:Double = Top - bottom
 	shape = New CPSegmentShape.Create(feeder, Vec2(0.0, -(Leng / 2.0)), Vec2(0.0, -(-Leng / 2.0)), 20.0)
@@ -196,8 +197,8 @@ Function InitSpace:CPSpace()
 	Shape.setFilter(GRAB_FILTER)
 	
 	space.AddConstraint(New CPPivotJoint.Create(staticBody, feeder, Vec2(-224.0, -bottom), Vec2(0.0, -(-Leng / 2.0))))
-	Local anchr:CPVect = feeder.World2Local(feeder.GetPosition().Sub(Vec2(-224, 160.0)))
-	space.AddConstraint(New CPPinJoint.Create(feeder, smallGear, anchr, Vec2(0.0, -80.0))) ' TODO : Fix me
+	Local anchr:CPVect = feeder.World2Local(Vec2(-224, 160.0))
+	space.AddConstraint(New CPPinJoint.Create(feeder, smallGear, anchr, Vec2(0.0, -80.0)))
 
     ' Motorize the second gear
     motor = New CPSimpleMotor.Create(staticBody, bigGear, 3.0)
