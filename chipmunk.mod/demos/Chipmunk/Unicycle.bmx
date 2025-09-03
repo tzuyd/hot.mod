@@ -1,4 +1,4 @@
-﻿
+
 Rem Copyright (c) 2007 Scott Lembcke
  * 
  * Permission is hereby granted, free of charge, to any person obtaining a copy
@@ -22,13 +22,7 @@ EndRem
  
 SuperStrict
 
-' Import required modules
 Framework brl.d3d9max2d
-'Import brl.StandardIO
-'Import brl.Max2D
-'Import brl.random
-'Import brl.math
-'Import brl.Color
 
 ' Import Chipmunk library
 Import hot.chipmunk
@@ -36,8 +30,18 @@ Import hot.chipmunk
 Import "ChipmunkDemo.bmx"
 
 Const DEG_TO_RAD:Double = Pi / 180.0
+Const RAD_TO_DEG:Double = 180.0 / Pi
 
-Global balance_body:cpBody
+' BlitzMax Sin()/ASin() are degree-based — helpers that operate in radians:
+Function SinRad:Double(r:Double) 
+    Return Sin(r * RAD_TO_DEG)
+End Function
+
+Function ASinRad:Double(v:Double)
+    Return ASin(v) * DEG_TO_RAD
+End Function
+
+Global balance_body:CPBody
 Global balance_sin:Double = 0.0
 'Global last_v:Double = 0.0
 
@@ -54,22 +58,22 @@ Function bias_coef:Double(errorBias:Double, dt:Double) inline
     Return 1.0 - (errorBias ^ dt)
 End Function
 
-Function motor_preSolve(motorptr:Byte ptr, unused:Byte ptr)
+Function motor_preSolve(motorptr:Byte Ptr, unused:Byte Ptr)
 '    Local motor:CPSimpleMotor = cpsimplemotor(cpfind(motorptr))
     Local dt:Double = Space.GetCurrentTimeStep()
 
     Local target_x:Double = ChipmunkDemoMouse.x
-    bmx_drawsegment(Vec2(target_x, 1000.0), Vec2(target_x, -1000.0), New scolor8(255, 0, 0, 255))
+    bmx_drawsegment(Vec2(target_x, 1000.0), Vec2(target_x, -1000.0), New SColor8(255, 0, 0, 255))
     
     Local max_v:Double = 500.0
     Local target_v:Double = Clamp(bias_coef(0.5, dt / 1.2) * (target_x - balance_body.GetPosition().x) / dt, -max_v, max_v)
-    Local error_v:Double = (target_v - balance_body.GetVelocity().x)
+	Local error_v:Double = (balance_body.GetVelocity().x - target_v)
     Local target_sin:Double = 3.0E-3 * bias_coef(0.1, dt) * error_v / dt
     
-    Local max_sin:Double = Sin(0.6 * DEG_TO_RAD) ' Convert to radians
+	Local max_sin:Double = -SinRad(-0.6)
     balance_sin = Clamp(balance_sin - 6.0E-5 * bias_coef(0.2, dt) * error_v / dt, -max_sin, max_sin)
-    Local target_a:Double = ASin(Clamp(-target_sin + balance_sin, -max_sin, max_sin))
-    Local angular_diff:Double = ASin(balance_body.GetRot().Cross(CPVect.ForAngle(target_a)))
+    Local target_a:Double = ASinRad(Clamp(-target_sin + balance_sin, -max_sin, max_sin))
+    Local angular_diff:Double = -ASinRad(-(balance_body.GetRot().Cross(CPVect.ForAngle(target_a))))
     Local target_w:Double = bias_coef(0.1, dt / 0.4) * (angular_diff) / dt
     
     Local max_rate:Double = 50.0
@@ -84,7 +88,6 @@ End Function
 
 Function initSpace:CPSpace()
     ChipmunkDemoMessageString = "This unicycle is completely driven and balanced by a single cpSimpleMotor.~nMove the mouse to make the unicycle follow it."
-    ChipmunkDemoMessageString:+"~nThis demo is broken.  Fix it"
 	
 	space = New CPSpace.Create()
     space.SetIterations(30)
@@ -131,7 +134,7 @@ Function initSpace:CPSpace()
     Local cog_offset:Double = 30.0
 	
     Local bb1:CPBB = New CPBB.Create(-5.0, -(0.0 - cog_offset), 5.0, -(cog_offset * 1.2 - cog_offset))
-    Local bb2:CPBB = New CPBB.Create(-25.0, -(bb1.t), 25.0, -(bb1.t + 10.0))
+    Local bb2:CPBB = New CPBB.Create(-25.0, (bb1.t), 25.0, (bb1.t - 10.0))
 	
     mass = 3.0
     moment = MomentForBox(mass, bb1) + MomentForBox(mass, bb2)
@@ -140,7 +143,7 @@ Function initSpace:CPSpace()
     space.AddBody(balance_body)
     balance_body.SetPosition(Vec2(0.0, wheel_body.GetPosition().y - cog_offset))
 	
-	Local polyshap:CPPolyShape = New cpBoxShape.Create(balance_body, bb1, 0.0)
+	Local polyshap:CPPolyShape = New CPBoxShape.Create(balance_body, bb1, 0.0)
     space.AddShape(polyshap)
     polyshap.SetFriction(1.0)
     polyshap.setFilter(CP_ALL_CATEGORIES)
@@ -163,15 +166,15 @@ Function initSpace:CPSpace()
     motor.SetPreSolveFunc(motor_preSolve)
     
     ' Create a box shape
-    Local Width:Double = 100.0
-    Local Height:Double = 20.0
+    Local width:Double = 100.0
+    Local height:Double = 20.0
     mass = 3.0
 	
-    Local boxBody:CPBody = New CPBody.Create(mass, MomentForBox(mass, Width, Height))
+    Local boxBody:CPBody = New CPBody.Create(mass, MomentForBox(mass, width, height))
 	space.AddBody(boxBody)
     boxBody.SetPosition(Vec2(200, 100))
 	
-	polyshap = New CPBoxShape.Create(boxBody, Width, Height, 0.0)
+	polyshap = New CPBoxShape.Create(boxBody, width, height, 0.0)
     space.AddShape(polyshap)
     polyshap.SetFriction(0.7)
     

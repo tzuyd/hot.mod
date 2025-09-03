@@ -168,7 +168,7 @@ Function InitSpace:CPSpace()
 	Local bigGear:CPBody = New CPBody.Create(40.0, MomentForCircle(40.0, 160, 0, CPVZero))
 	Space.AddBody(biggear)
 	biggear.SetPosition(Vec2(80, 160))
-	bigGear.SetAngle(Pi / 2.0)
+	bigGear.SetAngle(CP_PI / 2.0)
 	
 	circshap = New CPCircleShape.Create(bigGear, 160.0, CPVZero)
 	Space.AddShape(circshap)
