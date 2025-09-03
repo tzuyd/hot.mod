@@ -1,4 +1,4 @@
-﻿
+
 ' Copyright (c) 2007-2016 Bruce A Henderson
 ' 
 ' Permission is hereby granted, free of charge, to any person obtaining a copy
@@ -65,7 +65,7 @@ Import "glue.cpp"
 
 Extern
 
-	Function cpunbind(obj:Byte ptr)
+	Function cpunbind(obj:Byte Ptr)
 
 	Function bmx_cpf_clamp:Double(f:Double, Min:Double, Max:Double)
 	Function bmx_cpf_clamp01:Double(f:Double)
@@ -73,159 +73,159 @@ Extern
 	Function bmx_cpf_lerpconst:Double(f1:Double, f2:Double, d:Double)
 			
 	Function bmx_cpvect_rperp:Byte Ptr(Handle:Byte Ptr)
-	Function bmx_cpvect_lerp:Byte ptr(v1:Byte ptr, v2:Byte ptr, t:Double)
-	Function bmx_cpvect_dist:Double(v1:Byte ptr, v2:Byte ptr)
-	Function bmx_cpvect_distsq:Double(v1:Byte ptr, v2:Byte ptr)
-	Function bmx_cpvect_near:Int(v1:Byte ptr, v2:Byte ptr, Dist:Double)
-	Function bmx_cpvect_forangle:Byte ptr(a:Double)
+	Function bmx_cpvect_lerp:Byte Ptr(v1:Byte Ptr, v2:Byte Ptr, t:Double)
+	Function bmx_cpvect_dist:Double(v1:Byte Ptr, v2:Byte Ptr)
+	Function bmx_cpvect_distsq:Double(v1:Byte Ptr, v2:Byte Ptr)
+	Function bmx_cpvect_near:Int(v1:Byte Ptr, v2:Byte Ptr, Dist:Double)
+	Function bmx_cpvect_forangle:Byte Ptr(a:Double)
 	
 	Function bmx_cpbody_createkinematic:Byte Ptr(Handle:Object)
-	Function bmx_cpbody_getcenterofgravity:Byte ptr(body:Byte ptr)
+	Function bmx_cpbody_getcenterofgravity:Byte Ptr(body:Byte Ptr)
 	Function cpBodyGetType:Byte Ptr(body:Byte Ptr)
-	Function cpBodySetType(body:Byte ptr, cpBodyType:Byte ptr)
-	Function cpBodyGetMoment:Double(body:Byte ptr)
+	Function cpBodySetType(body:Byte Ptr, cpBodyType:Byte Ptr)
+	Function cpBodyGetMoment:Double(body:Byte Ptr)
 	Function bmx_cpbody_setforce(body:Byte Ptr, Value:Byte Ptr)
-	Function bmx_cpmomentforsegment:Double(m:Double, a:Byte ptr, b:Byte ptr, radius:Double)
-	Function bmx_cpmomentforbox:Double(m:Double, Width:Double, Height:Double)
-	Function bmx_cpmomentforbox2:Double(m:Double, box:Byte ptr)
-	Function cpBodyIsSleeping:Int(body:Byte ptr)
-	Function cpBodyEachArbiter(body:Byte Ptr, func(body:Byte Ptr,arbiter:Byte ptr, callbackData:Object), Data:Object)
-	Function bmx_cpbody_velocityatworldpoint:Byte ptr(body:Byte ptr, Point:Byte ptr)
-	Function bmx_cpbody_applyimpulseatworldpoint(body:Byte ptr, impulse:Byte ptr, Point:Byte ptr)
+	Function bmx_cpmomentforsegment:Double(m:Double, a:Byte Ptr, b:Byte Ptr, radius:Double)
+	Function bmx_cpmomentforbox:Double(m:Double, width:Double, height:Double)
+	Function bmx_cpmomentforbox2:Double(m:Double, box:Byte Ptr)
+	Function cpBodyIsSleeping:Int(body:Byte Ptr)
+	Function cpBodyEachArbiter(body:Byte Ptr, func(body:Byte Ptr,arbiter:Byte Ptr, callbackData:Object), Data:Object)
+	Function bmx_cpbody_velocityatworldpoint:Byte Ptr(body:Byte Ptr, Point:Byte Ptr)
+	Function bmx_cpbody_applyimpulseatworldpoint(body:Byte Ptr, impulse:Byte Ptr, Point:Byte Ptr)
 	Function bmx_cpbody_update:Double(cpObjectPtr:Byte Ptr)
 	
-	Function bmx_cpshape_getbb:Byte ptr(shape:Byte ptr)
-	Function cpShapeGetSensor:Int(shape:Byte ptr)
-	Function cpShapeSetSensor(shape:Byte ptr, Value:Int)
-	Function cpShapeGetCollisionType:size_t(shape:Byte ptr)
-	Function bmx_cpshape_setfilter(Handle:Byte Ptr, Filter:uInt)
-	Function cpShapeGetSpace:Byte ptr(shape:Byte ptr)
-	Function bmx_cpshape_pointquery:Double(shape:Byte ptr, p:Byte ptr, out:Byte ptr)
+	Function bmx_cpshape_getbb:Byte Ptr(shape:Byte Ptr)
+	Function cpShapeGetSensor:Int(shape:Byte Ptr)
+	Function cpShapeSetSensor(shape:Byte Ptr, Value:Int)
+	Function cpShapeGetCollisionType:Size_T(shape:Byte Ptr)
+	Function bmx_cpshape_setfilter(Handle:Byte Ptr, Filter:UInt)
+	Function cpShapeGetSpace:Byte Ptr(shape:Byte Ptr)
+	Function bmx_cpshape_pointquery:Double(shape:Byte Ptr, p:Byte Ptr, out:Byte Ptr)
 
-	Function bmx_cpcircleshape_getoffset:Byte ptr(circleShape:Byte ptr)
+	Function bmx_cpcircleshape_getoffset:Byte Ptr(circleShape:Byte Ptr)
 
 	Function cpSegmentShapeGetRadius:Double(shape:Byte Ptr)
-	Function bmx_cpsegmentshapesetneighbors(shape:Byte ptr, prev:Byte ptr, nextShape:Byte ptr)
+	Function bmx_cpsegmentshapesetneighbors(shape:Byte Ptr, prev:Byte Ptr, nextShape:Byte Ptr)
 
 	Function cpPolyShapeGetRadius:Double(shape:Byte Ptr)
-	Function bmx_cpboxshape_create:Byte ptr(Handle:Object, body:Byte ptr, Width:Double, Height:Double, radius:Double)
-	Function bmx_cpboxshape_create2:Byte ptr(Handle:Object, body:Byte ptr, box:Byte ptr, radius:Double)
-	Function cpPolyShapeSetRadius(shape:Byte ptr, radius:Double)
+	Function bmx_cpboxshape_create:Byte Ptr(Handle:Object, body:Byte Ptr, width:Double, height:Double, radius:Double)
+	Function bmx_cpboxshape_create2:Byte Ptr(Handle:Object, body:Byte Ptr, box:Byte Ptr, radius:Double)
+	Function cpPolyShapeSetRadius(shape:Byte Ptr, radius:Double)
 
-	Function bmx_cpspace_getgravity:Byte ptr(space:Byte ptr)
-	Function cpSpaceGetSleepTimeThreshold:Double(space:Byte ptr)
-	Function cpSpaceSetSleepTimeThreshold(space:Byte ptr, Value:Double)
-	Function cpSpaceSetCollisionSlop(space:Byte ptr, Value:Double)
-	Function cpSpaceGetCurrentTimeStep:Double(space:Byte ptr)
+	Function bmx_cpspace_getgravity:Byte Ptr(space:Byte Ptr)
+	Function cpSpaceGetSleepTimeThreshold:Double(space:Byte Ptr)
+	Function cpSpaceSetSleepTimeThreshold(space:Byte Ptr, Value:Double)
+	Function cpSpaceSetCollisionSlop(space:Byte Ptr, Value:Double)
+	Function cpSpaceGetCurrentTimeStep:Double(space:Byte Ptr)
 	Function cpSpaceIsLocked:Double(space:Byte Ptr)
-	Function bmx_cpspace_getstaticbody:Byte ptr(Handle:Object, space:Byte ptr)
+	Function bmx_cpspace_getstaticbody:Byte Ptr(Handle:Object, space:Byte Ptr)
 	Function cpSpaceReindexStatic(space:Byte Ptr)
 	Function bmx_cpspace_addwildcardfunc(Handle:Byte Ptr, CollisionType:Int,  ..
 		beginFunc:Int(arb:Byte Ptr, space:Byte Ptr, Data:Object), Data:Object,  ..
 		preSolveFunc:Int(arb:Byte Ptr, space:Byte Ptr, Data:Object),  ..
 		postSolveFunc(arb:Byte Ptr, space:Byte Ptr, Data:Object),  ..
 		separateFunc(arb:Byte Ptr, space:Byte Ptr, Data:Object))
-	Function bmx_cpspace_addpoststepcallback:Int(space:Byte ptr,  ..
+	Function bmx_cpspace_addpoststepcallback:Int(space:Byte Ptr,  ..
 		func(space:Byte Ptr, obj:Object, Data:Object), Key:Object, Data:Object)
 	Function cpSpaceEachShape(space:Byte Ptr, func(obj:Byte Ptr, callbackData:Object), Data:Object)
 	Function cpSpaceEachConstraint(space:Byte Ptr, func(obj:Byte Ptr, callbackData:Object), Data:Object)
 	Function cpSpaceUseSpatialHash(space:Byte Ptr, dim:Double, Count:Int)
-	Function bmx_cpspace_pointquerynearest:Byte ptr(space:Byte ptr, Point:Byte ptr, maxDistance:Double, Filter:uint, out:Byte ptr = Null)
-	Function bmx_cpspace_segmentqueryfunc(shape:Byte ptr, Point:Byte ptr, Normal:Byte ptr, Alpha:Double, Data:Object)
+	Function bmx_cpspace_pointquerynearest:Byte Ptr(space:Byte Ptr, Point:Byte Ptr, maxDistance:Double, Filter:UInt, out:Byte Ptr = Null)
+	Function bmx_cpspace_segmentqueryfunc(shape:Byte Ptr, Point:Byte Ptr, Normal:Byte Ptr, Alpha:Double, Data:Object)
 	Function bmx_cpspace_segmentquery( ..
-		space:Byte ptr, Start:Byte ptr, EndPoint:Byte ptr, radius:Double,  ..
-		Filter:uint,  ..
-		func(shape:Byte ptr, Point:Byte ptr, Normal:Byte ptr, Alpha:Double, callbackData:Object), Data:Object ..
+		space:Byte Ptr, Start:Byte Ptr, EndPoint:Byte Ptr, radius:Double,  ..
+		Filter:UInt,  ..
+		func(shape:Byte Ptr, Point:Byte Ptr, Normal:Byte Ptr, Alpha:Double, callbackData:Object), Data:Object ..
 	)
-	Function bmx_cpspace_segmentqueryfirst:Byte ptr( ..
-		space:Byte ptr, Start:Byte ptr, EndPoint:Byte ptr, radius:Double,  ..
-		Filter:uint,  ..
-		info:Byte ptr = Null ..
+	Function bmx_cpspace_segmentqueryfirst:Byte Ptr( ..
+		space:Byte Ptr, Start:Byte Ptr, EndPoint:Byte Ptr, radius:Double,  ..
+		Filter:UInt,  ..
+		info:Byte Ptr = Null ..
 	)
-	Function bmx_cpspace_update(cpObjectPtr:Byte Ptr, arbiters:Byte ptr)
+	Function bmx_cpspace_update(cpObjectPtr:Byte Ptr, arbiters:Byte Ptr)
 	
-	Function cpConstraintGetMaxForce:Double(constraint:Byte ptr)
-	Function cpConstraintSetMaxForce(constraint:Byte ptr, Value:Double)
-	Function cpConstraintSetErrorBias(constraint:Byte ptr, Value:Double)
-	Function cpConstraintSetMaxBias(constraint:Byte ptr, Value:Double)
-	Function cpConstraintSetCollideBodies(constraint:Byte ptr, collideBodies:Int)
-	Function bmx_cpconstraint_setpresolvefunc(constraint:Byte ptr,  ..
-		 preSolveFunc(constraint:Byte ptr, space:Byte Ptr))
-	Function bmx_cpconstraint_setpostsolvefunc(constraint:Byte ptr,  ..
-		 postSolveFunc(constraint:Byte ptr, space:Byte Ptr))
-	Function cpConstraintGetImpulse:Double(constraint:Byte ptr)
+	Function cpConstraintGetMaxForce:Double(constraint:Byte Ptr)
+	Function cpConstraintSetMaxForce(constraint:Byte Ptr, Value:Double)
+	Function cpConstraintSetErrorBias(constraint:Byte Ptr, Value:Double)
+	Function cpConstraintSetMaxBias(constraint:Byte Ptr, Value:Double)
+	Function cpConstraintSetCollideBodies(constraint:Byte Ptr, collideBodies:Int)
+	Function bmx_cpconstraint_setpresolvefunc(constraint:Byte Ptr,  ..
+		 preSolveFunc(constraint:Byte Ptr, space:Byte Ptr))
+	Function bmx_cpconstraint_setpostsolvefunc(constraint:Byte Ptr,  ..
+		 postSolveFunc(constraint:Byte Ptr, space:Byte Ptr))
+	Function cpConstraintGetImpulse:Double(constraint:Byte Ptr)
 		
-	Function cpConstraintIsPinJoint:Int(constraint:Byte ptr)
-	Function cpPinJointSetDist(constraint:Byte ptr, Value:Double)
+	Function cpConstraintIsPinJoint:Int(constraint:Byte Ptr)
+	Function cpPinJointSetDist(constraint:Byte Ptr, Value:Double)
 				
-	Function cpConstraintIsSlideJoint:Int(constraint:Byte ptr)
-	Function bmx_cpslidejoint_setmax(constraint:Byte ptr, Value:Double)
+	Function cpConstraintIsSlideJoint:Int(constraint:Byte Ptr)
+	Function bmx_cpslidejoint_setmax(constraint:Byte Ptr, Value:Double)
 	
-	Function cpConstraintIsPivotJoint:Int(constraint:Byte ptr)
-	Function bmx_cppivotjoint_setanchora(constraint:Byte ptr, Value:Byte ptr)
+	Function cpConstraintIsPivotJoint:Int(constraint:Byte Ptr)
+	Function bmx_cppivotjoint_setanchora(constraint:Byte Ptr, Value:Byte Ptr)
 			
-	Function cpConstraintIsGrooveJoint:Int(constraint:Byte ptr)
+	Function cpConstraintIsGrooveJoint:Int(constraint:Byte Ptr)
 			
-	Function cpConstraintIsDampedSpring:Int(constraint:Byte ptr)
+	Function cpConstraintIsDampedSpring:Int(constraint:Byte Ptr)
 	Function bmx_cpdampedspring_getanchora:Byte Ptr(Handle:Byte Ptr)
 	Function bmx_cpdampedspring_getanchorb:Byte Ptr(Handle:Byte Ptr)
-	Function cpDampedSpringGetRestLength:Double(constraint:Byte ptr)
-	Function cpDampedSpringGetStiffness:Double(constraint:Byte ptr)
-	Function cpDampedSpringSetSpringForceFunc(constraint:Byte ptr, springForceFunc:Double(spring:Byte ptr, Dist:Double))
+	Function cpDampedSpringGetRestLength:Double(constraint:Byte Ptr)
+	Function cpDampedSpringGetStiffness:Double(constraint:Byte Ptr)
+	Function cpDampedSpringSetSpringForceFunc(constraint:Byte Ptr, springForceFunc:Double(spring:Byte Ptr, Dist:Double))
 		
-	Function bmx_cpdampedrotaryspring_new:Byte ptr(Handle:Object, a:Byte ptr, b:Byte ptr, restAngle:Double, stiffness:Double, damping:Double)
+	Function bmx_cpdampedrotaryspring_new:Byte Ptr(Handle:Object, a:Byte Ptr, b:Byte Ptr, restAngle:Double, stiffness:Double, damping:Double)
 
-	Function bmx_cprotarylimitjoint_new:Byte ptr(Handle:Object, a:Byte ptr, b:Byte ptr, Min:Double, Max:Double)
+	Function bmx_cprotarylimitjoint_new:Byte Ptr(Handle:Object, a:Byte Ptr, b:Byte Ptr, Min:Double, Max:Double)
 		
-	Function bmx_cpratchetjoint_new:Byte ptr(Handle:Object, a:Byte ptr, b:Byte ptr, phase:Double, Ratchet:Double)
+	Function bmx_cpratchetjoint_new:Byte Ptr(Handle:Object, a:Byte Ptr, b:Byte Ptr, phase:Double, Ratchet:Double)
 
-	Function bmx_cpgearjoint_new:Byte ptr(Handle:Object, a:Byte ptr, b:Byte ptr, phase:Double, ratio:Double)
+	Function bmx_cpgearjoint_new:Byte Ptr(Handle:Object, a:Byte Ptr, b:Byte Ptr, phase:Double, ratio:Double)
 
-	Function bmx_cpsimplemotor_new:Byte ptr(Handle:Object, a:Byte ptr, b:Byte ptr, rate:Double)
-	Function cpSimpleMotorSetRate(constraint:Byte ptr, Value:Double)
+	Function bmx_cpsimplemotor_new:Byte Ptr(Handle:Object, a:Byte Ptr, b:Byte Ptr, rate:Double)
+	Function cpSimpleMotorSetRate(constraint:Byte Ptr, Value:Double)
 
-	Function cpSpaceHashNew:Byte ptr(celldim:Double, cells:Int, bbfunc:Double ptr(obj:Object), staticIndex:Byte ptr)
-	Function cpSpatialIndexFree(Index:Byte ptr)
-	Function bmx_cpspatialindex_each(Index:Byte ptr, func(obj:Byte ptr, Data:Object), Data:Object)
-	Function bmx_cpspatialindex_query(Index:Byte ptr, obj:Byte ptr, bb:Byte ptr, func(obj1:Byte ptr, obj2:Double ptr, id:uint, Data:Object), callbackData:Object)
+	Function cpSpaceHashNew:Byte Ptr(celldim:Double, cells:Int, bbfunc:Double Ptr(obj:Object), staticIndex:Byte Ptr)
+	Function cpSpatialIndexFree(Index:Byte Ptr)
+	Function bmx_cpspatialindex_each(Index:Byte Ptr, func(obj:Byte Ptr, Data:Object), Data:Object)
+	Function bmx_cpspatialindex_query(Index:Byte Ptr, obj:Byte Ptr, bb:Byte Ptr, func(obj1:Byte Ptr, obj2:Double Ptr, id:UInt, Data:Object), callbackData:Object)
 	
-	Function cpArbiterIgnore:Int(arb:Byte ptr)
-	Function bmx_cparbiter_getdata:Object(arb:Byte ptr)
-	Function cpArbiterSetUserData(arb:Byte ptr, Data:Object)
+	Function cpArbiterIgnore:Int(arb:Byte Ptr)
+	Function bmx_cparbiter_getdata:Object(arb:Byte Ptr)
+	Function cpArbiterSetUserData(arb:Byte Ptr, Data:Object)
 	Function cpArbiterGetCount:Int(arb:Byte Ptr)
-	Function bmx_cparbiter_getnormal:Byte ptr(arb:Byte ptr)
-	Function bmx_cparbiter_getpointa:Byte ptr(arb:Byte ptr, i:Int)
-	Function bmx_cparbiter_getpointb:Byte ptr(arb:Byte ptr, i:Int)
+	Function bmx_cparbiter_getnormal:Byte Ptr(arb:Byte Ptr)
+	Function bmx_cparbiter_getpointa:Byte Ptr(arb:Byte Ptr, i:Int)
+	Function bmx_cparbiter_getpointb:Byte Ptr(arb:Byte Ptr, i:Int)
     Function cpArbiterGetDepth:Double(arb:Byte Ptr, i:Int)
 	Function cpArbiterGetShapes (arb:Byte Ptr, a:Byte Ptr, b:Byte Ptr)
 	Function cpArbiterGetBodies (arb:Byte Ptr, a:Byte Ptr, b:Byte Ptr)
-	Function bmx_cparbiter_totalimpulse:Byte ptr(Arb:Byte ptr)
+	Function bmx_cparbiter_totalimpulse:Byte Ptr(Arb:Byte Ptr)
 	Function bmx_cparbiter_getcontacts:Byte Ptr(arb:Byte Ptr, i:Int)
 	
-	Function bmx_cpcontact_getr1:Byte ptr(contact:Byte ptr)
-	Function bmx_cpcontact_setr1(contact:Byte ptr, r1:Byte ptr)
-	Function bmx_cpcontact_getr2:Byte ptr(contact:Byte ptr)
-	Function bmx_cpcontact_setr2(contact:Byte ptr, r2:Byte ptr)
+	Function bmx_cpcontact_getr1:Byte Ptr(contact:Byte Ptr)
+	Function bmx_cpcontact_setr1(contact:Byte Ptr, r1:Byte Ptr)
+	Function bmx_cpcontact_getr2:Byte Ptr(contact:Byte Ptr)
+	Function bmx_cpcontact_setr2(contact:Byte Ptr, r2:Byte Ptr)
 
-	Function bmx_cptransform_update(transformPtr:Byte ptr, a:Byte ptr, b:Byte ptr, c:Byte ptr, d:Byte ptr, tx:Byte ptr, ty:Byte ptr)
+	Function bmx_cptransform_update(transformPtr:Byte Ptr, a:Byte Ptr, b:Byte Ptr, c:Byte Ptr, d:Byte Ptr, tx:Byte Ptr, ty:Byte Ptr)
 	
 	?Not ios
-	Function bmx_cphastyspace_new:Byte ptr(Handle:Object)
-	Function cpHastySpaceFree(space:Byte ptr)
-	Function cpHastySpaceSetThreads(space:Byte ptr, threads:Size_T)
-	Function cpHastySpaceStep(space:Byte ptr, dt:Double)
+	Function bmx_cphastyspace_new:Byte Ptr(Handle:Object)
+	Function cpHastySpaceFree(space:Byte Ptr)
+	Function cpHastySpaceSetThreads(space:Byte Ptr, threads:Size_T)
+	Function cpHastySpaceStep(space:Byte Ptr, dt:Double)
 	?
 		
 ?Linux Or MacOs Or ios
 	Function bmx_cpshape_update:Int(cpObjectPtr:Byte Ptr)
 
-	Function bmx_cpspatialindex_insert(Index:Byte ptr, obj:Object, hashid:Int)
-	Function bmx_cpspatialindex_remove(Index:Byte ptr, obj:Object, hashid:Int)
+	Function bmx_cpspatialindex_insert(Index:Byte Ptr, obj:Object, hashid:Int)
+	Function bmx_cpspatialindex_remove(Index:Byte Ptr, obj:Object, hashid:Int)
 ?Not (Linux Or MacOs Or ios)
-	Function bmx_cpshape_update:uint(cpObjectPtr:Byte Ptr)
+	Function bmx_cpshape_update:UInt(cpObjectPtr:Byte Ptr)
 
-	Function bmx_cpspatialindex_insert(Index:Byte ptr, obj:Object, hashid:uint)
-	Function bmx_cpspatialindex_remove(Index:Byte ptr, obj:Object, hashid:uint)
+	Function bmx_cpspatialindex_insert(Index:Byte Ptr, obj:Object, hashid:UInt)
+	Function bmx_cpspatialindex_remove(Index:Byte Ptr, obj:Object, hashid:UInt)
 ?
 
 ' -- above added by Hotcakes ------------------------
@@ -245,7 +245,7 @@ Extern
 	Function bmx_cpbody_getangle:Double(handle:Byte Ptr)
 	Function bmx_cpbody_getangularvelocity:Double(handle:Byte Ptr)
 	Function bmx_cpbody_gettorque:Double(handle:Byte Ptr)
-	Function bmx_cpbody_setposition(handle:Byte Ptr, pos:Byte Ptr)
+	Function bmx_cpbody_setposition(handle:Byte Ptr, posx:Double, posy:Double)
 	Function bmx_cpbody_getposition:Byte Ptr(handle:Byte Ptr)
 	Function bmx_cpbody_getrot:Byte Ptr(handle:Byte Ptr)
 	Function bmx_cpbody_setvelocity(handle:Byte Ptr, velocity:Byte Ptr)
@@ -334,7 +334,7 @@ Extern
 
 	Function bmx_cpshape_setelasticity(handle:Byte Ptr, e:Double)
 	Function bmx_cpshape_setfriction(Handle:Byte Ptr, u:Double)
-	Function bmx_cpshape_setcollisiontype(Handle:Byte Ptr, Kind:size_t)
+	Function bmx_cpshape_setcollisiontype(Handle:Byte Ptr, Kind:Size_T)
 	Function bmx_cpshape_getbody:Byte Ptr(handle:Byte Ptr)
 	Function bmx_cpshape_setgroup(Handle:Byte Ptr, group:Int)
 	Function bmx_cpshape_setlayers(handle:Byte Ptr, layers:Int)
@@ -348,7 +348,7 @@ Extern
 	Function bmx_cpshape_getdata:Object(handle:Byte Ptr)
 
 	Function bmx_momentforcircle:Double(m:Double, r1:Double, r2:Double, offset:Byte Ptr)
-	Function bmx_cpdampedspring:Byte ptr(Handle:Object, a:Byte Ptr, b:Byte Ptr, anchor1:Byte Ptr, anchor2:Byte Ptr, rlen:Double, k:Double, dmp:Double, dt:Double)
+	Function bmx_cpdampedspring:Byte Ptr(Handle:Object, a:Byte Ptr, b:Byte Ptr, anchor1:Byte Ptr, anchor2:Byte Ptr, rlen:Double, k:Double, dmp:Double, dt:Double)
 
 	Function bmx_cpcircleshape_create:Byte Ptr(handle:Object, body:Byte Ptr, radius:Double, offset:Byte Ptr)
 	Function bmx_cpcircleshape_getradius:Double(handle:Byte Ptr)
@@ -357,9 +357,9 @@ Extern
 	
 	Function cpSpaceEachBody(handle:Byte Ptr, callback(obj:Byte Ptr, callbackData:Object), data:Object)
 
-	Function bmx_cppinjoint_create:Byte Ptr(handle:Object, bodyA:Byte Ptr, bodyB:Byte Ptr, anchor1:Byte Ptr, anchor2:Byte Ptr)
+	Function bmx_cppinjoint_create:Byte Ptr(handle:Object, bodyA:Byte Ptr, bodyB:Byte Ptr, anchor1x:Double, anchor1y:Double, anchor2x:Double, anchor2y:Double)
 	Function bmx_cpslidejoint_create:Byte Ptr(handle:Object, bodyA:Byte Ptr, bodyB:Byte Ptr, anchor1:Byte Ptr, anchor2:Byte Ptr, minDist:Double, maxDist:Double)
-	Function bmx_cppivotjoint_create:Byte Ptr(Handle:Object, bodyA:Byte Ptr, bodyB:Byte Ptr, pivot:Byte Ptr, anchorB:Byte ptr)
+	Function bmx_cppivotjoint_create:Byte Ptr(Handle:Object, bodyA:Byte Ptr, bodyB:Byte Ptr, pivot:Byte Ptr, anchorB:Byte Ptr)
 	Function bmx_cpgroovejoint_create:Byte Ptr(handle:Object, bodyA:Byte Ptr, bodyB:Byte Ptr, grooveA:Byte Ptr, grooveB:Byte Ptr, anchor:Byte Ptr)
 	Function cpConstraintFree(handle:Byte Ptr)
 
@@ -403,13 +403,13 @@ Const INFINITY:Double = 1e1000
 
 ' -- below added by Hotcakes ------------------------
 
-Const CP_BODY_TYPE_DYNAMIC:Byte ptr = 0
-Const CP_BODY_TYPE_KINEMATIC:Byte ptr = 1
-Const CP_BODY_TYPE_STATIC:Byte ptr = 2
-Const CP_SHAPE_FILTER_ALL:uint = CP_ALL_CATEGORIES
-Const CP_SHAPE_FILTER_NONE:uint = ~CP_ALL_CATEGORIES
-Const CP_NO_GROUP:uint = 0								' /// Value for cpShape.group signifying that a shape is in no group.
-Const CP_ALL_CATEGORIES:uint = ~0						' /// Value for cpShape.layers signifying that a shape is in every layer.
+Const CP_BODY_TYPE_DYNAMIC:Byte Ptr = 0
+Const CP_BODY_TYPE_KINEMATIC:Byte Ptr = 1
+Const CP_BODY_TYPE_STATIC:Byte Ptr = 2
+Const CP_SHAPE_FILTER_ALL:UInt = CP_ALL_CATEGORIES
+Const CP_SHAPE_FILTER_NONE:UInt = ~CP_ALL_CATEGORIES
+Const CP_NO_GROUP:UInt = 0								' /// Value for cpShape.group signifying that a shape is in no group.
+Const CP_ALL_CATEGORIES:UInt = ~0						' /// Value for cpShape.layers signifying that a shape is in every layer.
 
 Global CP_PI:Double = ACos(-1.0)	' converts from code designed for radians to BlitzMax compatible degrees
 

@@ -1,4 +1,4 @@
-﻿
+
 ' Copyright (c) 2007-2016 Bruce A Henderson
 ' 
 ' Permission is hereby granted, free of charge, to any person obtaining a copy
@@ -360,7 +360,7 @@ Type CPBody Extends CPObject
 	bbdoc: Sets the body position.
 	End Rem
 	Method SetPosition(pos:CPVect)
-		bmx_cpbody_setposition(cpObjectPtr, pos.vecPtr)
+		bmx_cpbody_setposition(cpObjectPtr, pos.x, pos.y)
 	End Method
 	
 	Rem
@@ -809,9 +809,9 @@ separateFunc(shapeA:CPShape, shapeB:CPShape, contacts:CPContact[], normalCoefici
 	
 	Function _dobeginCollision:Int(arb:Byte Ptr, space:Byte Ptr, Data:Object)
 	    If _CollisionPair(data)
-	        Local a:Byte ptr
-	        Local b:Byte ptr
-	        cpArbiterGetShapes(arb, VarPtr(a), VarPtr(b))
+	        Local a:Byte Ptr
+	        Local b:Byte Ptr
+	        cpArbiterGetShapes(arb, Varptr(a), Varptr(b))
 	
 	        ' Get the number of contact points
 	        Local Count:Int = cpArbiterGetCount(Arb)
@@ -834,9 +834,9 @@ separateFunc(shapeA:CPShape, shapeB:CPShape, contacts:CPContact[], normalCoefici
 	
 	Function _dopreSolveCollision:Int(arb:Byte Ptr, space:Byte Ptr, Data:Object)
 	    If _CollisionPair(data)
-	        Local a:Byte ptr
-	        Local b:Byte ptr
-	        cpArbiterGetShapes(arb, VarPtr(a), VarPtr(b))
+	        Local a:Byte Ptr
+	        Local b:Byte Ptr
+	        cpArbiterGetShapes(arb, Varptr(a), Varptr(b))
 				
 	        ' Get the number of contact points
 	        Local Count:Int = cpArbiterGetCount(arb)
@@ -859,9 +859,9 @@ separateFunc(shapeA:CPShape, shapeB:CPShape, contacts:CPContact[], normalCoefici
 	
 	Function _dopostSolveCollision(arb:Byte Ptr, space:Byte Ptr, Data:Object)
 	    If _CollisionPair(data)
-	        Local a:Byte ptr
-	        Local b:Byte ptr
-	        cpArbiterGetShapes(arb, VarPtr(a), VarPtr(b))
+	        Local a:Byte Ptr
+	        Local b:Byte Ptr
+	        cpArbiterGetShapes(arb, Varptr(a), Varptr(b))
 				
 	        ' Get the number of contact points
 	        Local Count:Int = cpArbiterGetCount(arb)
@@ -884,9 +884,9 @@ separateFunc(shapeA:CPShape, shapeB:CPShape, contacts:CPContact[], normalCoefici
 	
 	Function _doseparateCollision(arb:Byte Ptr, space:Byte Ptr, Data:Object)
 	    If _CollisionPair(data)
-	        Local a:Byte ptr
-	        Local b:Byte ptr
-	        cpArbiterGetShapes(arb, VarPtr(a), VarPtr(b))
+	        Local a:Byte Ptr
+	        Local b:Byte Ptr
+	        cpArbiterGetShapes(arb, Varptr(a), Varptr(b))
 				
 			If cpArbiter(_CollisionPair(Data).Data) Then _CollisionPair(Data).Data = New cpArbiter._create(arb)
 			
@@ -2012,7 +2012,7 @@ Type CPSpatialIndex Extends cpObject
 	Rem
 	bbdoc: Allocate and initialize a spatial hash.
 	EndRem
-	Method Create:CPSpatialIndex(celldim:Double, cells:Int, bbfunc:Double ptr(obj:Object), staticIndex:CPSpatialIndex)
+	Method Create:CPSpatialIndex(celldim:Double, cells:Int, bbfunc:Double Ptr(obj:Object), staticIndex:CPSpatialIndex)
 		If staticIndex
 			parent = staticIndex.parent
 			cpobjectptr = cpSpaceHashNew(celldim, cells, bbfunc, staticIndex.cpObjectPtr)
@@ -2070,7 +2070,7 @@ Type CPSpatialIndex Extends cpObject
 ?Linux Or MacOs Or ios
 	Method Insert(obj:Object, hashid:Int)
 ?Not (Linux Or MacOs Or ios)
-	Method Insert(obj:Object, hashid:uint)
+	Method Insert(obj:Object, hashid:UInt)
 ?
 		bmx_cpspatialindex_insert(cpObjectPtr, obj, hashid)
 	End Method
@@ -2082,7 +2082,7 @@ Type CPSpatialIndex Extends cpObject
 ?Linux Or MacOs Or ios
 	Method Remove(obj:Object, hashid:Int)
 ?Not (Linux Or MacOs Or ios)
-	Method Remove(obj:Object, hashid:uint)
+	Method Remove(obj:Object, hashid:UInt)
 ?
 		bmx_cpspatialindex_remove(cpObjectPtr, obj, hashid)
 	End Method
@@ -2090,7 +2090,7 @@ Type CPSpatialIndex Extends cpObject
 	Rem
 	bbdoc: Perform a rectangle query against the spatial index, calling @func for each potential match.
 	End Rem
-	Method Query(obj:Object, bb:CPBB, func(obj1:Object, obj2:Double ptr, id:uint, Data:Byte ptr), Data:Byte ptr)
+	Method Query(obj:Object, bb:CPBB, func(obj1:Object, obj2:Double Ptr, id:UInt, Data:Byte Ptr), Data:Byte Ptr)
 		Local cb:TQueryFuncCallback = New TQueryFuncCallback
 		cb.callback = func
 		cb.data = data
@@ -2098,7 +2098,7 @@ Type CPSpatialIndex Extends cpObject
 		bmx_cpspatialindex_query(cpObjectPtr, obj, bb.bbPtr, QueryFuncCallback, cb)
 	End Method
 	
-	Function QueryFuncCallback(obj1:Byte ptr, obj2:Double ptr, id:uint, callbackData:Object)
+	Function QueryFuncCallback(obj1:Byte Ptr, obj2:Double Ptr, id:UInt, callbackData:Object)
 		If TQueryFuncCallback(callbackData) Then
 			TQueryFuncCallback(callbackData).callback(cpfind(obj1), obj2, id, TQueryFuncCallback(callbackData).Data)
 		End If
@@ -2230,7 +2230,7 @@ Type CPPinJoint Extends CPConstraint
 	bbdoc: Creates a New pin joint.
 	End Rem
 	Method Create:CPPinJoint(bodyA:CPBody, bodyB:CPBody, anchor1:CPVect, anchor2:CPVect)
-		cpObjectPtr = bmx_cppinjoint_create(Self, bodyA.cpObjectPtr, bodyB.cpObjectPtr, anchor1.vecPtr, anchor2.vecPtr)
+		cpObjectPtr = bmx_cppinjoint_create(Self, bodyA.cpObjectPtr, bodyB.cpObjectPtr, anchor1.x, anchor1.y, anchor2.x, anchor2.y)
 		Return Self
 	End Method
 	
@@ -2415,7 +2415,7 @@ Extern	' This block handles Object arrays
 
 	Function bmx_cpconvexhull:Int(Count:Int, verts:CPVect[], result:CPVect[], First:Int Ptr, tol:Double)
 
-	Function bmx_cparbiter_setcontactpointset(arb:Byte ptr, Set:CPContact[])
+	Function bmx_cparbiter_setcontactpointset(arb:Byte Ptr, Set:CPContact[])
 End Extern
 
 Rem
@@ -2739,7 +2739,7 @@ Type CPBoxShape Extends CPPolyShape
 	Adding a small @radius will bevel the corners and can significantly reduce problems where the box gets stuck on seams in your geometry. 
 	If you want to create an off-center box, you will need to use CPPolyShape.Create().
 	End Rem
-	Method Create:CPPolyShape(body:CPBody, Width:Double, Height:Double, radius:Double)
+	Method Create:CPPolyShape(body:CPBody, width:Double, height:Double, radius:Double)
 		cpObjectPtr = bmx_cpboxshape_create(Self, body.cpObjectPtr, width, height, radius)
 		_Update
 		Return Self
@@ -2823,7 +2823,7 @@ Type CPDampedSpring Extends CPConstraint
 	Rem
 	bbdoc: /// Set the damping of the spring.
 	End Rem
-	Method SetSpringForceFunc(springForceFunc:Double(spring:Byte ptr, Dist:Double))
+	Method SetSpringForceFunc(springForceFunc:Double(spring:Byte Ptr, Dist:Double))
 		cpDampedSpringSetSpringForceFunc(cpObjectPtr, springForceFunc)
 	End Method
 End Type
@@ -2910,8 +2910,8 @@ Rem
 bbdoc: Spatial query callback function type.
 EndRem
 Type TQueryFuncCallback
-	Field callback(obj1:Object, obj2:Double ptr, id:uint, Data:Byte ptr)
-	Field Data:Byte ptr
+	Field callback(obj1:Object, obj2:Double Ptr, id:UInt, Data:Byte Ptr)
+	Field Data:Byte Ptr
 End Type
 
 

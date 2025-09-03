@@ -1,5 +1,3 @@
-﻿
-' This demo is broken And I have no idea why
 
 SuperStrict
 
@@ -15,7 +13,7 @@ init()
 Graphics 640, 480, 0
 
 SetColor(255, 255, 255)
-
+ 
 
 Global joint:CPConstraint
 Global chassis:CPBody, wheel1:CPBody, wheel2:CPBody
@@ -38,7 +36,7 @@ End
 
 
 Function Update(ticks:Int)
-	Local steps:Int = 3
+	Local steps:Int = 5	' 3
 	Local dt:Float = 1.0/60.0/steps
 	
 	For Local i:Int = 0 Until steps
@@ -79,6 +77,8 @@ Function init()
 	space.SetIterations(10)
 	space.usespatialHash(50.0, 999)
 	space.SetGravity(Vec2(0, 300))
+
+'	space.SetDamping(0.9)  ' 0.8–0.99 depending on taste
 
 	Local body:CPBody
 	Local shape:CPShape
@@ -124,44 +124,28 @@ Function init()
 	body7 = makeBox(body6.GetPosition().x + 40, -100)
 
 
-    Local anchorA:CPVect = Vec2(body1.GetPosition().x - 20, -100).Sub(staticBody.GetPosition())
-    Local anchorB:CPVect = Vec2(body1.GetPosition().x - 20, -100).Sub(body1.GetPosition())
-	joint = New CPPivotJoint.Create(staticBody, body1, anchorA, anchorB)
+	joint = New CPPivotJoint.Create(staticBody, body1, Vec2(body1.GetPosition().x - 20, -100))
 	space.AddConstraint(joint)
 
-    anchorA = Vec2(body2.GetPosition().x - 20, -100).Sub(body1.GetPosition())
-    anchorB = Vec2(body2.GetPosition().x - 20, -100).Sub(body2.GetPosition())
-	joint = New CPPivotJoint.Create(body1, body2, anchorA, anchorB)
+	joint = New CPPivotJoint.Create(body1, body2, Vec2(body2.GetPosition().x - 20, -100))
 	space.AddConstraint(joint)
 	
-    anchorA = Vec2(body3.GetPosition().x - 20, -100).Sub(body2.GetPosition())
-    anchorB = Vec2(body3.GetPosition().x - 20, -100).Sub(body3.GetPosition())
-	joint = New CPPivotJoint.Create(body2, body3, anchorA, anchorB)
+	joint = New CPPivotJoint.Create(body2, body3, Vec2(body3.GetPosition().x - 20, -100))
 	space.AddConstraint(joint)
 	
-    anchorA = Vec2(body4.GetPosition().x - 20, -100).Sub(body3.GetPosition())
-    anchorB = Vec2(body4.GetPosition().x - 20, -100).Sub(body4.GetPosition())
-	joint = New CPPivotJoint.Create(body3, body4, anchorA, anchorB)
+	joint = New CPPivotJoint.Create(body3, body4, Vec2(body4.GetPosition().x - 20, -100))
 	space.AddConstraint(joint)
 	
-    anchorA = Vec2(body5.GetPosition().x - 20, -100).Sub(body4.GetPosition())
-    anchorB = Vec2(body5.GetPosition().x - 20, -100).Sub(body5.GetPosition())
-	joint = New CPPivotJoint.Create(body4, body5, anchorA, anchorB)
+	joint = New CPPivotJoint.Create(body4, body5, Vec2(body5.GetPosition().x - 20, -100))
 	space.AddConstraint(joint)
 	
-    anchorA = Vec2(body6.GetPosition().x - 20, -100).Sub(body5.GetPosition())
-    anchorB = Vec2(body6.GetPosition().x - 20, -100).Sub(body6.GetPosition())
-	joint = New CPPivotJoint.Create(body5, body6, anchorA, anchorB)
+	joint = New CPPivotJoint.Create(body5, body6, Vec2(body6.GetPosition().x - 20, -100))
 	space.AddConstraint(joint)
 	
-    anchorA = Vec2(body7.GetPosition().x - 20, -100).Sub(body6.GetPosition())
-    anchorB = Vec2(body7.GetPosition().x - 20, -100).Sub(body7.GetPosition())
-	joint = New CPPivotJoint.Create(body6, body7, anchorA, anchorB)
+	joint = New CPPivotJoint.Create(body6, body7, Vec2(body7.GetPosition().x - 20, -100))
 	space.AddConstraint(joint)
 	
-    anchorA = Vec2(body7.GetPosition().x - 20, -100).Sub(body7.GetPosition())
-    anchorB = Vec2(body7.GetPosition().x - 20, -100).Sub(staticBody.GetPosition())
-	joint = New CPPivotJoint.Create(body7, staticBody, anchorA, anchorB)
+	joint = New CPPivotJoint.Create(body7, staticBody, Vec2(body7.GetPosition().x + 20, -100))
 	space.AddConstraint(joint)
 	
 	body1 = makeBox(-100, -50);
@@ -273,7 +257,7 @@ Function init()
 	space.AddBody(wheel2)
 	shape = New CPCircleShape.Create(wheel2, radius, Vec2(0,0))
 	shape.SetElasticity(0.0)
-	shape.SetFriction(2.5)
+	shape.SetFriction(2.5)  ' 1.0, to reduce stick–slip chatter
 	space.AddShape(shape)
 	
 	joint = New CPPinJoint.Create(chassis, wheel2, Vec2(0,0), Vec2(0,0))

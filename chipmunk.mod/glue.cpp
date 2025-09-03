@@ -159,7 +159,7 @@ extern "C" {
 	cpFloat bmx_cpbody_getangle(cpBody *body);
 	cpFloat bmx_cpbody_getangularvelocity(cpBody *body);
 	cpFloat bmx_cpbody_gettorque(cpBody *body);
-	void bmx_cpbody_setposition(cpBody *body, cpVect *vec);
+	void bmx_cpbody_setposition(cpBody *body, cpFloat x, cpFloat y);
 	cpVect *bmx_cpbody_getposition(cpBody *body);
 	cpVect *bmx_cpbody_getrot(cpBody *body);
 	void bmx_cpbody_setvelocity(cpBody *body, cpVect *velocity);
@@ -253,7 +253,7 @@ extern "C" {
 	cpVect *bmx_cpcircleshape_getcenter(cpCircleShape *shape);
 	cpVect *bmx_cpcircleshape_gettransformedcenter(cpCircleShape *shape);
 
-	cpConstraint *bmx_cppinjoint_create(BBObject *handle, cpBody *bodyA, cpBody *bodyB, cpVect *anchor1, cpVect *anchor2);
+	cpConstraint *bmx_cppinjoint_create(BBObject *handle, cpBody *bodyA, cpBody *bodyB, cpFloat anchor1x, cpFloat anchor1y, cpFloat anchor2x, cpFloat anchor2y);
 	cpConstraint *bmx_cpslidejoint_create(BBObject *handle, cpBody *bodyA, cpBody *bodyB, cpVect *anchor1, cpVect *anchor2, cpFloat minDist, cpFloat maxDist);
 	cpConstraint *bmx_cppivotjoint_create(BBObject *handle, cpBody *bodyA, cpBody *bodyB, cpVect *pivot, cpVect *anchorB);
 	cpConstraint *bmx_cpgroovejoint_create(BBObject *handle, cpBody *bodyA, cpBody *bodyB, cpVect *grooveA, cpVect *grooveB, cpVect *anchor);
@@ -374,8 +374,9 @@ cpFloat bmx_cpbody_gettorque(cpBody * body) {
 	return body->t;
 }
 
-void bmx_cpbody_setposition(cpBody * body, cpVect * vec) {
-	body->p = *vec;
+void bmx_cpbody_setposition(cpBody * body, cpFloat x, cpFloat y) {
+	cpBodySetPosition(body, cpv(x, y));
+	cpBodyActivate(body);
 }
 
 cpVect * bmx_cpbody_getposition(cpBody * body) {
@@ -880,8 +881,8 @@ return bmx_cpvect_new(shape->tc);
 
 // -------------------------------------------------
 
-cpConstraint * bmx_cppinjoint_create(BBObject * handle, cpBody * bodyA, cpBody * bodyB, cpVect * anchor1, cpVect * anchor2) {
-cpConstraint * joint = cpPinJointNew(bodyA, bodyB, *anchor1, *anchor2);
+cpConstraint * bmx_cppinjoint_create(BBObject * handle, cpBody * bodyA, cpBody * bodyB, cpFloat anchor1x, cpFloat anchor1y, cpFloat anchor2x, cpFloat anchor2y) {
+	cpConstraint * joint = cpPinJointNew(bodyA, bodyB, cpv(anchor1x, anchor1y), cpv(anchor2x, anchor2y));
 cpbind(joint, handle);
 return joint;
 }
