@@ -1,10 +1,9 @@
-﻿SuperStrict
+SuperStrict
 
 Framework BRL.Max2D
 Import BRL.Random
 
 Import "main4.bmx"
-
 
 InitChipmunk()
 
@@ -62,7 +61,8 @@ End Function
 
 Function init()
 
-	staticBody = New CPBody.Create(INFINITY, INFINITY)
+'	staticBody = New CPBody.Create(INFINITY, INFINITY)
+	staticBody = New CPBody.CreateKinematic()	' Kinematic Bodies are new in Chipmunk 7 and Static Bodies are now cheaper to calculate, but shouldn't be moved
 	
 	ResetShapeIdCounter()
 	
@@ -70,7 +70,8 @@ Function init()
 	space.SetIterations(5)
 	space.usespatialHash(200.0, 999)
 	space.SetGravity(Vec2(0, 600))
-
+	space.AddBody(staticBody)
+	
 	Local body:CPBody
 	Local shape:CPShape
 	
