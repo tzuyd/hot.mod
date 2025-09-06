@@ -64,6 +64,8 @@ Import "src/constraints/cpSlideJoint.c"
 Import "glue.cpp"
 
 Extern
+    Function bmx_debug_segment_worldpoints(shape:Byte Ptr)
+    Function bmx_debug_poly_worldpoints(shape:Byte Ptr)
 
 	Function cpunbind(obj:Byte Ptr)
 
@@ -76,7 +78,7 @@ Extern
 	Function bmx_cpvect_lerp:Byte Ptr(v1:Byte Ptr, v2:Byte Ptr, t:Double)
 	Function bmx_cpvect_dist:Double(v1:Byte Ptr, v2:Byte Ptr)
 	Function bmx_cpvect_distsq:Double(v1:Byte Ptr, v2:Byte Ptr)
-	Function bmx_cpvect_near:Int(v1:Byte Ptr, v2:Byte Ptr, Dist:Double)
+	Function bmx_cpvect_near:Byte(v1:Byte Ptr, v2:Byte Ptr, Dist:Double)
 	Function bmx_cpvect_forangle:Byte Ptr(a:Double)
 	
 	Function bmx_cpbody_createkinematic:Byte Ptr(Handle:Object)
@@ -88,15 +90,15 @@ Extern
 	Function bmx_cpmomentforsegment:Double(m:Double, a:Byte Ptr, b:Byte Ptr, radius:Double)
 	Function bmx_cpmomentforbox:Double(m:Double, width:Double, height:Double)
 	Function bmx_cpmomentforbox2:Double(m:Double, box:Byte Ptr)
-	Function cpBodyIsSleeping:Int(body:Byte Ptr)
+	Function cpBodyIsSleeping:Byte(body:Byte Ptr)
 	Function cpBodyEachArbiter(body:Byte Ptr, func(body:Byte Ptr,arbiter:Byte Ptr, callbackData:Object), Data:Object)
 	Function bmx_cpbody_velocityatworldpoint:Byte Ptr(body:Byte Ptr, Point:Byte Ptr)
 	Function bmx_cpbody_applyimpulseatworldpoint(body:Byte Ptr, impulse:Byte Ptr, Point:Byte Ptr)
 	Function bmx_cpbody_update:Double(cpObjectPtr:Byte Ptr)
 	
 	Function bmx_cpshape_getbb:Byte Ptr(shape:Byte Ptr)
-	Function cpShapeGetSensor:Int(shape:Byte Ptr)
-	Function cpShapeSetSensor(shape:Byte Ptr, Value:Int)
+	Function cpShapeGetSensor:Byte(shape:Byte Ptr)
+	Function cpShapeSetSensor(shape:Byte Ptr, Value:Byte)
 	Function cpShapeGetCollisionType:Size_T(shape:Byte Ptr)
 	Function bmx_cpshape_setfilter(Handle:Byte Ptr, Filter:UInt)
 	Function cpShapeGetSpace:Byte Ptr(shape:Byte Ptr)
@@ -125,7 +127,7 @@ Extern
 		preSolveFunc:Int(arb:Byte Ptr, space:Byte Ptr, Data:Object),  ..
 		postSolveFunc(arb:Byte Ptr, space:Byte Ptr, Data:Object),  ..
 		separateFunc(arb:Byte Ptr, space:Byte Ptr, Data:Object))
-	Function bmx_cpspace_addpoststepcallback:Int(space:Byte Ptr,  ..
+	Function bmx_cpspace_addpoststepcallback:Byte(space:Byte Ptr,  ..
 		func(space:Byte Ptr, obj:Object, Data:Object), Key:Object, Data:Object)
 	Function cpSpaceEachShape(space:Byte Ptr, func(obj:Byte Ptr, callbackData:Object), Data:Object)
 	Function cpSpaceEachConstraint(space:Byte Ptr, func(obj:Byte Ptr, callbackData:Object), Data:Object)
@@ -216,17 +218,10 @@ Extern
 	Function cpHastySpaceStep(space:Byte Ptr, dt:Double)
 	?
 		
-?Linux Or MacOs Or ios
-	Function bmx_cpshape_update:Int(cpObjectPtr:Byte Ptr)
+	Function bmx_cpshape_update:Size_T(cpObjectPtr:Byte Ptr)
 
-	Function bmx_cpspatialindex_insert(Index:Byte Ptr, obj:Object, hashid:Int)
-	Function bmx_cpspatialindex_remove(Index:Byte Ptr, obj:Object, hashid:Int)
-?Not (Linux Or MacOs Or ios)
-	Function bmx_cpshape_update:UInt(cpObjectPtr:Byte Ptr)
-
-	Function bmx_cpspatialindex_insert(Index:Byte Ptr, obj:Object, hashid:UInt)
-	Function bmx_cpspatialindex_remove(Index:Byte Ptr, obj:Object, hashid:UInt)
-?
+	Function bmx_cpspatialindex_insert(Index:Byte Ptr, obj:Object, hashid:Size_T)
+	Function bmx_cpspatialindex_remove(Index:Byte Ptr, obj:Object, hashid:Size_T)
 
 ' -- above added by Hotcakes ------------------------
 
@@ -336,8 +331,8 @@ Extern
 	Function bmx_cpshape_setfriction(Handle:Byte Ptr, u:Double)
 	Function bmx_cpshape_setcollisiontype(Handle:Byte Ptr, Kind:Size_T)
 	Function bmx_cpshape_getbody:Byte Ptr(handle:Byte Ptr)
-	Function bmx_cpshape_setgroup(Handle:Byte Ptr, group:Int)
-	Function bmx_cpshape_setlayers(handle:Byte Ptr, layers:Int)
+	Function bmx_cpshape_setgroup(Handle:Byte Ptr, group:ULong)
+	Function bmx_cpshape_setlayers(handle:Byte Ptr, layers:ULong)
 	Function bmx_cpshape_setsurfacevelocity(handle:Byte Ptr, velocity:Byte Ptr)
 	Function bmx_cpshape_getsurfacevelocity:Byte Ptr(handle:Byte Ptr)
 	Function bmx_cpshape_getelasticity:Double(handle:Byte Ptr)

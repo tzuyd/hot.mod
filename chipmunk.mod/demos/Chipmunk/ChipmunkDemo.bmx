@@ -106,7 +106,7 @@ Global NOT_GRABBABLE_FILTER:UInt = ~GRABBABLE_MASK_BIT
 
 Function ChipmunkDemoDefaultDrawImpl(space:CPSpace)
     Local drawOptions:bmx_drawoptions = New bmx_drawoptions
-    drawOptions.Flags = bmx_DRAW_SHAPES | bmx_DRAW_CONSTRAINTS | bmx_DRAW_COLLISION_POINTS
+    drawOptions.flags = bmx_DRAW_SHAPES | bmx_DRAW_CONSTRAINTS | bmx_DRAW_COLLISION_POINTS
 	
     drawOptions.shapeOutlineColor = New SColor8(255 - $EE, 255 - $E8, 255 - $D5, 255)	' Outline color
     drawOptions.ColorForShape = ColorForShape
@@ -218,20 +218,15 @@ Function ColorForShape:SColor8(shape:CPShape, Data:Object)
         Local body:CPBody = Shape.GetBody()
         
 		body._Update
-		
         If body.IsSleeping() Then
             Return New SColor8($58, $6e, $75, 255)
         ElseIf body.sleeping.idleTime > cpSpaceGetSleepTimeThreshold(cpShapeGetSpace(shape.cpObjectPtr))
             Return New SColor8($93, $a1, $a1, 255)
         Else
 			shape._Update
-?Linux Or MacOs Or ios
-            Local val:Int = shape.hashid
-?Not (Linux Or MacOs Or ios)
-            Local val:UInt = shape.hashid
-?
+            Local val:Size_T = shape.hashid
             
-            ' Scramble the bits up using Robert Jenkins' 32-bit integer hash function
+             ' Scramble the bits up using Robert Jenkins' 32-bit integer hash function
             val = (val + $7ed55d16) + (val Shl 12)
             val = (val ~ $c761c23c) ~ (val Shr 19)
             val = (val + $165667b1) + (val Shl 5)

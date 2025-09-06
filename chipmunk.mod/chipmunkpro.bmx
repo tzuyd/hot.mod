@@ -70,13 +70,13 @@ Type CPMarch
 		)
 	End Function
 
-	Function _samplehashCallback:Double(Point:Double ptr, callbackData:Object) { nomangle }
+	Function _samplehashCallback:Double(Point:Double Ptr, callbackData:Object) { nomangle }
 	    If TMarchSampleFuncCallback(callbackData) Then
 	        Return TMarchSampleFuncCallback(callbackData).callback(CPVect._create(Point), TMarchSampleFuncCallback(callbackData).Data)
 	    End If
 	End Function
 
-	Function _segmenthashCallback(v0:Double ptr, v1:Double ptr, callbackData:Object) { nomangle }
+	Function _segmenthashCallback(v0:Double Ptr, v1:Double Ptr, callbackData:Object) { nomangle }
 	    If TMarchSegmentFuncCallback(callbackData) Then
 	        TMarchSegmentFuncCallback(callbackData).callback(CPVect._create(v0), CPVect._create(v1), CPPolylineSet(TMarchSegmentFuncCallback(callbackData).Data))
 	    End If
@@ -86,62 +86,40 @@ End Type
 
 
 Extern	' This block handles Object arrays
-	Function bmx_cppolyline_verts(line:Byte ptr, verts:CPVect[])
+	Function bmx_cppolyline_verts(line:Byte Ptr, verts:CPVect[])
 End Extern
-
-rem
-bbdoc: Polylines are just arrays of vertexes.
-about: They are looped if the first vertex is equal to the last.
-CPPolyline structs are intended to be passed by value and destroyed when you are done with them.
-EndRem
-Struct SPolyline
-	Field Count:Int, Capacity:Int
-	Field verts:Double ptr
-
-	Rem
-	bbdoc: Returns a copy of a polyline simplified by using the Douglas-Peucker algorithm.
-	about: This works very well on smooth or gently curved shapes, but not well on straight edged or angular shapes.
-	EndRem
-    Method simplifyCurves:CPPolyline(tolerance:Double)
-        Return CPPolyline.fromPolyline(cpPolylineSimplifyCurves(VarPtr(Count), tolerance))
-    End Method
-
-EndStruct
 
 Rem
 bbdoc: Wrapper for the CPPolyline type.
 EndRem
 Type CPPolyline
-	Field cpObjectPtr:SPolyline ptr
 	Private
-    Field line:SPolyline
+	Public
+    Field line:Byte Ptr
     Field _area:Double = 0
 	Public
 	
-    Function initWithPolyline:CPPolyline(line:Byte ptr)
-        Local this:CPPolyline = New CPPolyline
-        this.cpObjectPtr = line
-        this.line = this.cpObjectPtr[0]
-		cpbind(this.cpObjectPtr, this)
-        Return this
-    End Function
+    Method initWithPolyline(line:Byte Ptr)
+        Self.line = line
+		cpbind(line, Self)
+    End Method
 
     Method Delete()
-        cpPolylineFree(cpObjectPtr)
-		cpunbind(cpObjectPtr)
-		cpObjectPtr = Null
-		line = New SPolyline
+        cpPolylineFree(line)
+		cpunbind(Byte Ptr(line))
     End Method
 
     Function fromPolyline:CPPolyline(line:Byte Ptr)
-        Return CPPolyline.initWithPolyline(line)
+        Local this:CPPolyline = New CPPolyline
+		this.initWithPolyline(line)
+        Return this
     End Function
 
 	Rem
 	bbdoc: Returns true if the first and last vertex are equal.
 	EndRem
-    Method isClosed:Int()
-        Return cpPolylineIsClosed(cpObjectPtr)
+    Method isClosed:Byte()
+        Return cpPolylineIsClosed(line)
     End Method
 
 	Rem
@@ -160,7 +138,7 @@ Type CPPolyline
 	about: It is an error to call this on a non-closed polyline.
 	EndRem
     Method centroid:CPVect()
-		If Not isClosed() Then Assert("Cannot compute the centroid of a non-looped polyline.")
+		If Not isClosed() Then Throw("Cannot compute the centroid of a non-looped polyline.")
         Return CentroidForPoly(verts())
     End Method
 
@@ -168,7 +146,7 @@ Type CPPolyline
 	bbdoc: Calculates the moment of inertia for a closed polyline with the given @mass and @offset.
 	EndRem
     Method momentForMass:Double(mass:Double, offset:CPVect)
-		If Not isClosed() Then Assert("Cannot compute the moment of a non-looped polyline.")
+		If Not isClosed() Then Throw("Cannot compute the moment of a non-looped polyline.")
         Return MomentForPoly(mass, verts(), offset, 0.0)
     End Method
 
@@ -177,28 +155,28 @@ Type CPPolyline
 	bbdoc: Vertex count.
 	EndRem
     Method Count:Int()
-        Return line.Count
+		Return (Int Ptr(line))[0]
     End Method
 
 	Rem
 	bbdoc: Array of vertexes.
 	EndRem
     Method verts:CPVect[] ()
-		Local verts:CPVect[] = New CPVect[Count()]
-		bmx_cppolyline_verts(cpObjectPtr, verts)
+		Local offset:Byte Ptr = line + 8
+	    Local numVerts:Int = Count()
+		Local verts:CPVect[] = New CPVect[numVerts]
+	    For Local i:Int = 0 To numVerts - 1
+			verts[i] = Vec2((Double Ptr(offset))[i * 2], (Double Ptr(offset))[(i * 2) + 1])
+	    Next
 		Return verts
     End Method
 
-	Function _setVert(verts:CPVect[], Index:Int, vec:Byte Ptr) { nomangle }
-		verts[Index] = CPVect._create(vec)
-	End Function
-	
 	Rem
 	bbdoc: Returns a copy of a polyline simplified by using the Douglas-Peucker algorithm.
 	about: This works very well on smooth or gently curved shapes, but not well on straight edged or angular shapes.
 	EndRem
     Method simplifyCurves:CPPolyline(tolerance:Double)
-        Return CPPolyline.fromPolyline(cpPolylineSimplifyCurves(cpObjectPtr, tolerance))
+        Return CPPolyline.fromPolyline(cpPolylineSimplifyCurves(line, tolerance))
     End Method
 
 	Rem
@@ -206,7 +184,7 @@ Type CPPolyline
 	about: This works well on straight edged or angular shapes, not as well on smooth shapes.
 	EndRem
     Method simplifyVertexes:CPPolyline(tolerance:Double)
-        Return CPPolyline.fromPolyline(cpPolylineSimplifyVertexes(cpObjectPtr, tolerance))
+        Return CPPolyline.fromPolyline(cpPolylineSimplifyVertexes(line, tolerance))
     End Method
 
 	Rem
@@ -220,7 +198,7 @@ Type CPPolyline
 	bbdoc: Generate an approximate convex hull that contains a polyline. (closed or not)
 	EndRem
     Method toConvexHull:CPPolyline(tolerance:Double)
-        Return CPPolyline.fromPolyline(cpPolylineToConvexHull(cpObjectPtr, tolerance))
+        Return CPPolyline.fromPolyline(cpPolylineToConvexHull(line, tolerance))
     End Method
 
 	Rem
@@ -228,10 +206,12 @@ Type CPPolyline
 	about: BETA
 	EndRem
     Method toConvexHulls:CPPolylineSet(tolerance:Double)
-        Local Set:CPPolylineSet = CPPolylineSet.initWithPolylineSet(cpPolylineConvexDecomposition(cpObjectPtr, tolerance))
-        Local Value:CPPolylineSet = CPPolylineSet.fromPolylineSet(Set)
-        cpPolylineSetFree(set, False)
-        Return value
+        Local Set:CPPolylineSet = New CPPolylineSet(cpPolylineConvexDecomposition(line, tolerance))
+		Set.initWithPolylineSet()
+        Local Value:CPPolylineSet = CPPolylineSet.fromPolylineSet(Set.lines)
+        cpPolylineSetFree(Set.lines, False)
+		Set.lines = Null
+        Return Value
     End Method
 
 	Rem
@@ -273,7 +253,7 @@ Rem
 bbdoc: Wrapper for the CPPolylineSet type.
 EndRem
 Type CPPolylineSet
-	Field lines:Int Ptr
+	Field lines:Byte Ptr
 
 	Rem
 	bdoc: Allocate and initialize a polyline set.
@@ -281,7 +261,7 @@ Type CPPolylineSet
 	Method New()
 		lines = cpPolylineSetNew()
 	End Method
-	Method New(Set:Byte ptr)
+	Method New(Set:Byte Ptr)
 		lines = Set
 	End Method
 
@@ -290,43 +270,47 @@ Type CPPolylineSet
 	about: A segment will either start a new polyline, join two others, or add to or loop an existing polyline.
 	This is mostly intended to be used as a callback directly from CPMarch.Soft() or CPMarch.Hard().
 	EndRem
-	Function CollectSegment(v0:CPVect, v1:CPVect, Data:CPPolylineSet)
-		bmx_cppolylineset_collectsegment(v0.vecPtr, v1.vecPtr, Data.lines)
+	Function CollectSegment(v0:CPVect, v1:CPVect, lines:CPPolylineSet)
+		bmx_cppolylineset_collectsegment(v0.vecPtr, v1.vecPtr, lines.lines)
 	End Function
 
-    Function initWithPolylineSet:CPPolylineSet(Set:Byte ptr)
-        Local this:CPPolylineSet = New CPPolylineSet(Set)
-        For Local i:uInt = 0 Until this.Count()
-            Local polyline:CPPolyline = this.lineAtIndex(i)
+    Method initWithPolylineSet()
+        For Local i:UInt = 0 Until Count()
+            Local polyline:CPPolyline = lineAtIndex(i)
             Local verts:CPVect[] = polyline.verts()
             Local Count:Int = polyline.Count()
             For Local j:Int = 0 Until count - 1
                 Local v0:CPVect = verts[j]
                 Local v1:CPVect = verts[j + 1]
-                this.CollectSegment(v0, v1, this)
+                CollectSegment(v0, v1, Self)
             Next
                 Local v0:CPVect = verts[Count - 1]
                 Local v1:CPVect = verts[0]
-                this.CollectSegment(v0, v1, this)
+                CollectSegment(v0, v1, Self)
         Next
-        Return this
-    End Function
-
-    Method Delete()
-        cpPolylineSetFree(lines, False)
-		lines = Null
     End Method
 
-    Function fromPolylineSet:CPPolylineSet(Set:Byte ptr)
-        Return CPPolylineSet.initWithPolylineSet(Set)
+    Method Delete()
+		If lines
+	        cpPolylineSetFree(lines, False)
+			lines = Null
+		EndIf
+    End Method
+
+    Function fromPolylineSet:CPPolylineSet(Set:Byte Ptr)
+        Local this:CPPolylineSet = New CPPolylineSet(Set)
+		this.initWithPolylineSet()
+        Return this
     End Function
 
     Method Count:Int()
 		Return (Int Ptr(lines))[0]
     End Method
 
-    Method lineAtIndex:CPPolyline(Index:uInt)
-		Return CPPolyline.fromPolyline((Byte Ptr Ptr(lines + 8))[Index])
+    Method lineAtIndex:CPPolyline(Index:UInt)
+		Local offset:Byte Ptr = lines + 8
+		Local pointer:Byte Ptr = Byte Ptr Ptr(offset)[0]
+		Return CPPolyline.fromPolyline((pointer)[Index])
     End Method
 End Type
 
@@ -358,22 +342,12 @@ Type ChipmunkAbstractSampler
 	EndRem
     Method march:CPPolylineSet(bb:CPBB, xSamples:Size_T, ySamples:Size_T, hard:Int)
         Local Set:CPPolylineSet = New CPPolylineSet
-    DebugLog "Marching with bb: (" + bb.l + ", " + bb.b + ", " + bb.r + ", " + bb.t + ")"
         If hard
-        DebugLog "Calling CPMarch.Hard"
             CPMarch.hard(bb, xSamples, ySamples, marchThreshold, Set.CollectSegment, Set, sampleFunc, Self)
         Else
-        DebugLog "Calling CPMarch.Soft"
             CPMarch.Soft(bb, xSamples, ySamples, marchThreshold, Set.CollectSegment, Set, sampleFunc, Self)
         End If
-    If Set.Count() = 0 Then
-        DebugLog "No polylines were created."
-    Else
-        DebugLog "Number of polylines created: " + Set.Count()
-    End If
-	DebugStop
         Local Value:CPPolylineSet = CPPolylineSet.fromPolylineSet(Set.lines)
-	DebugStop
         cpPolylineSetDestroy(Set.lines, False)
         Return Value
     End Method
@@ -422,12 +396,12 @@ Type ChipmunkBitmapSampler Extends ChipmunkAbstractSampler
 	Rem
 	bbdoc: Width of the bitmap in Pixels.
 	EndRem
-	Field Width:Size_T
+	Field width:Size_T
 
 	Rem
 	bbdoc: Height of the bitmap in Pixels.
 	EndRem
-	Field Height:Size_T
+	Field height:Size_T
 	Field stride:Size_T
 
 	Rem
@@ -486,8 +460,8 @@ Type ChipmunkBitmapSampler Extends ChipmunkAbstractSampler
 	EndRem
 	
 	Function SampleFunc8Clamp:Double(Point:CPVect, this:ChipmunkAbstractSampler)
-		Local w:Size_T = ChipmunkBitmapSampler(this).Width
-		Local h:Size_T = ChipmunkBitmapSampler(this).Height
+		Local w:Size_T = ChipmunkBitmapSampler(this).width
+		Local h:Size_T = ChipmunkBitmapSampler(this).height
 	
 		Local bb:CPBB = ChipmunkBitmapSampler(this).outputRect
 		Local clamped:CPVect = bb.ClampVect(Point)
@@ -502,8 +476,8 @@ Type ChipmunkBitmapSampler Extends ChipmunkAbstractSampler
 	End Function
 	
 	Function SampleFunc8Border:Double(Point:CPVect, this:ChipmunkAbstractSampler)
-		Local w:Size_T = ChipmunkBitmapSampler(this).Width
-		Local h:Size_T = ChipmunkBitmapSampler(this).Height
+		Local w:Size_T = ChipmunkBitmapSampler(this).width
+		Local h:Size_T = ChipmunkBitmapSampler(this).height
 	
 		Local bb:CPBB = ChipmunkBitmapSampler(this).outputRect
 		If bb.ContainsVect(Point) Then
@@ -527,20 +501,20 @@ Type ChipmunkBitmapSampler Extends ChipmunkAbstractSampler
 	@flip allows you to flip the image vertically to match how it migh be drawn.
 	@pixelData can be either a TPixmap or NSMutableData (i.e. for deformable terrain) that contains the bitmap data.
 	EndRem
-	Method initWithWidth(Width:Size_T, Height:Size_T, stride:Size_T, BytesPerPixel:Size_T, component:Size_T, Flip:Int, pixelData:TPixmap)
+	Method initWithWidth(width:Size_T, height:Size_T, stride:Size_T, BytesPerPixel:Size_T, component:Size_T, Flip:Int, pixelData:TPixmap)
 	    Self.sampleFunc = SampleFunc8Clamp
-			Self.Width = Width
+			Self.width = width
 			Self.height = height
 			Self.stride = stride
 			
 			Self.bytesPerPixel = bytesPerPixel
 			Self.component = component
 			
-			Self.flip = flip
+			Self.Flip = Flip
 			Self.pixelData = pixelData
 			Self.Pixels = PixmapPixelPtr(pixelData)
 			
-			Self.outputRect = New CPBB.Create(0.5, 0.5, Width - 0.5, Height - 0.5)
+			Self.outputRect = New CPBB.Create(0.5, 0.5, width - 0.5, height - 0.5)
 
 	End Method
 
@@ -564,23 +538,23 @@ Type ChipmunkBitmapSampler Extends ChipmunkAbstractSampler
         Self.borderValue = borderValue
 	End Method
 
-	Function BorderedBB:CPBB(bb:CPBB, Width:Size_T, Height:Size_T)
-	    Local xBorder:Double = (bb.r - bb.l) / Double(Width - 1)
-	    Local yBorder:Double = (bb.t - bb.b) / Double(Height - 1)
+	Function BorderedBB:CPBB(bb:CPBB, width:Size_T, height:Size_T)
+	    Local xBorder:Double = (bb.r - bb.l) / Double(width - 1)
+	    Local yBorder:Double = (bb.t - bb.b) / Double(height - 1)
 	    Return New CPBB.Create(bb.l - xBorder, bb.b - yBorder, bb.r + xBorder, bb.t + yBorder)
 	End Function
 
 	Rem
 	bbdoc: March the entire image.
 	EndRem
-	Method marchAllWithBorder:CpPolylineSet(bordered:Int, hard:Int)
-        Local Width:Size_T = Self.Width
-        Local Height:Size_T = Self.Height
+	Method marchAllWithBorder:CPPolylineSet(bordered:Int, hard:Int)
+        Local width:Size_T = Self.width
+        Local height:Size_T = Self.height
         Local bb:CPBB = Self.outputRect
         If bordered
-            Return Self.March(BorderedBB(bb, Width, Height), Width + 2, Height + 2, hard)
+            Return Self.March(BorderedBB(bb, width, height), width + 2, height + 2, hard)
         Else
-            Return Self.March(bb, Width, Height, hard)
+            Return Self.March(bb, width, height, hard)
         End If
 	End Method
 End Type
@@ -604,7 +578,7 @@ Type ChipmunkCGContextSampler Extends ChipmunkBitmapSampler
 	bbdoc: Initialize a context based sampler. Must provide options for a valid context.
 	about: Find out more here in the Quartz 2D Programming Guide.
 	EndRem
-	Method initWithWidth:ChipmunkCGContextSampler(Width:Size_T, Height:Size_T, colorSpace:TPixmap, bitmapInfo:Size_T, component:Size_T)
+	Method initWithWidth:ChipmunkCGContextSampler(width:Size_T, height:Size_T, colorSpace:TPixmap, bitmapInfo:Int, component:Size_T)
         Local bpc:Size_T
 		Select bitmapInfo
 			Case PF_A8 Or PF_I8
@@ -615,12 +589,12 @@ Type ChipmunkCGContextSampler Extends ChipmunkBitmapSampler
 				bpc = 32
 		 End Select
         Local stride:Size_T = PixmapPitch(colorSpace)
-        Local bpp:Size_T = stride / Width
+        Local bpp:Size_T = stride / width
         If Not (bpc = 8) Then Throw("Cannot handle non-8bit-per-pixel bitmap data!")
 
 		pixelData = ConvertPixmap(colorSpace, bitmapInfo)
 
-        Super.initWithWidth(Width, Height, stride, bpp, component, True, pixelData)
+        Super.initWithWidth(width, height, stride, bpp, component, True, pixelData)
 	End Method
 
 	Method Delete()
@@ -631,9 +605,9 @@ End Type
 
 
 Function ConvertToGrayscale:TPixmap(pixmap:TPixmap)
-    Local w:Int = pixmap.Width
-    Local h:Int = pixmap.Height
-    Local newPixmap:TPixmap = CreatePixmap(w, h, pixmap.Format)
+    Local w:Int = pixmap.width
+    Local h:Int = pixmap.height
+    Local newPixmap:TPixmap = CreatePixmap(w, h, pixmap.format)
     
     For Local y:Int = 0 Until h
         For Local x:Int = 0 Until w
@@ -663,7 +637,7 @@ Type ChipmunkImageSampler Extends ChipmunkCGContextSampler
 	EndRem
 	Method LoadImage:TPixmap(url:String)
         Local image:TPixmap = LoadPixmap(url)
-        If Not image Then Throw("Image could not be loaded.")
+        Assert image, "Image could not be loaded."
         Return image
 	End Method
 
@@ -678,7 +652,7 @@ Type ChipmunkImageSampler Extends ChipmunkCGContextSampler
         Local colorSpace:TPixmap
 		If isMask Then colorSpace = ConvertToGrayscale(image) Else colorSpace = Null
 colorSpace = image
-        Local bitmapInfo:Size_T
+        Local bitmapInfo:Int
 		If isMask Then bitmapInfo = PF_I8 Else bitmapInfo = PF_A8
 
         Super.initWithWidth(contextWidth, contextHeight, colorSpace, bitmapInfo, 0)
@@ -693,10 +667,10 @@ colorSpace = image
 	EndRem
 	Method initWithImageFile:ChipmunkImageSampler(imageFile:String, isMask:Int)
         Local image:TPixmap = LoadImage(imageFile)
-        Local Width:Size_T = PixmapWidth(image)
-        Local Height:Size_T = PixmapHeight(image)
+        Local width:Size_T = PixmapWidth(image)
+        Local height:Size_T = PixmapHeight(image)
 		
-        Self.initWithImage(image, isMask, Width, Height)
+        Self.initWithImage(image, isMask, width, height)
 		
 		Return Self
 	End Method
@@ -713,10 +687,10 @@ End Type
 
 
 Type DeformPoint
-    Field posX:Double ptr
-	Field posY:Double ptr
-    Field radius:Double ptr
-    Field fuzz:Double ptr
+    Field posX:Double Ptr
+	Field posY:Double Ptr
+    Field radius:Double Ptr
+    Field fuzz:Double Ptr
 	Field p:TBank
 	
 	Method New(Pos:CPVect, radius:Double, fuzz:Double)
@@ -731,7 +705,7 @@ Type DeformPoint
 		Self.fuzz[0] = fuzz
 DebugStop
 	End Method
-	Method New(Point:Double ptr)
+	Method New(Point:Double Ptr)
 		p = CreateStaticBank(Point, 32)
 		Self.posX = BankBuf(p)
 		Self.posY = BankBuf(p) + 8
@@ -741,7 +715,7 @@ DebugStop
 	End Method
 End Type
 
-Function PointBB:Double ptr(Point:Object)
+Function PointBB:Double Ptr(Point:Object)
 '	Local p:DeformPoint = New DeformPoint(Point)
     Local v:CPVect = Vec2(DeformPoint(Point).Posx[0], DeformPoint(Point).posY[0])
     Local r:Double = DeformPoint(Point).radius[0]
@@ -765,16 +739,16 @@ Type ChipmunkPointCloudSampler Extends ChipmunkAbstractSampler
         If distsq < r * r Then Return 1.0 - Clamp01((r - Sqr(distsq)) / (softness * r)) Else Return 1.0
     End Function
 
-    Function PointQuery(v:Object, Point:Double ptr, id:UInt, density:Byte ptr)
+    Function PointQuery(v:Object, Point:Double Ptr, id:UInt, density:Byte Ptr)
 		Local p:DeformPoint = New DeformPoint(Point)
 		DebugStop
-	    Double ptr(density)[0] = Double ptr(density)[0] * Self.fuzz(CPVect(v), Vec2(p.Posx[0], p.posY[0]), p.radius[0], p.fuzz[0])
+	    Double Ptr(density)[0] = Double Ptr(density)[0] * Self.fuzz(CPVect(v), Vec2(p.Posx[0], p.posY[0]), p.radius[0], p.fuzz[0])
 		DebugStop
     End Function
 
     Function PointCloudSample:Double(Pos:CPVect, cloud:Object)
         Local density:Double = 1.0
-        ChipmunkPointCloudSampler(cloud).Index.Query(Pos, New CPBB.NewForCircle(Pos, 0.0), PointQuery, VarPtr density)
+        ChipmunkPointCloudSampler(cloud).Index.Query(Pos, New CPBB.NewForCircle(Pos, 0.0), PointQuery, Varptr density)
 		
         Return density
     End Function
@@ -803,14 +777,10 @@ Type ChipmunkPointCloudSampler Extends ChipmunkAbstractSampler
 	Rem
     bbdoc: Add a point to the cloud and return the dirty rect for the point.
 	EndRem
-    Method addPoint:Double ptr(Pos:CPVect, radius:Double, fuzz:Double)
+    Method addPoint:Double Ptr(Pos:CPVect, radius:Double, fuzz:Double)
 		Local Point:DeformPoint = New DeformPoint(Pos, radius, fuzz)
         
-?Linux Or MacOs Or ios
-        Self.Index.Insert(Point.p, Int(BankBuf(Point.p)))
-?Not (Linux Or MacOs Or ios)
-        Self.Index.Insert(Point.p, uInt(BankBuf(Point.p)))
-?
+        Self.Index.Insert(Point.p, Size_T(BankBuf(Point.p)))
         
         Return PointBB(Point)
     End Method
@@ -826,7 +796,7 @@ Type ChipmunkCachedTile
 	
 	Field shapes:TList = New TList
 
-	Function ChipmunkCachedTileBB:Double ptr(tile:Object)
+	Function ChipmunkCachedTileBB:Double Ptr(tile:Object)
 		ChipmunkCachedTile(tile).bb.bbPtr[0] = ChipmunkCachedTile(tile).bb.l
 		ChipmunkCachedTile(tile).bb.bbPtr[1] = ChipmunkCachedTile(tile).bb.b
 		ChipmunkCachedTile(tile).bb.bbPtr[2] = ChipmunkCachedTile(tile).bb.r
@@ -834,9 +804,9 @@ Type ChipmunkCachedTile
 		Return ChipmunkCachedTile(tile).bb.bbPtr
 	End Function
 
-	Function ChipmunkCachedTileQuery(Pos:Object, tile:Double ptr, id:uint, out:Byte ptr)
+	Function ChipmunkCachedTileQuery(Pos:Object, tile:Double Ptr, id:UInt, out:Byte Ptr)
 	DebugStop
-		If New CPBB.Create(tile[0], tile[1], tile[2], tile[3]).ContainsVect(CPVect(Pos)) Then out = VarPtr tile
+		If New CPBB.Create(tile[0], tile[1], tile[2], tile[3]).ContainsVect(CPVect(Pos)) Then out = Varptr tile
 		DebugStop
 	End Function
 
@@ -897,7 +867,7 @@ Type ChipmunkAbstractTileCache Extends CPObject
 	bbdoc: Create the cache from the given sampler, space to add the generated segments to,
 	size of the tiles, and the number of samples for each tile.
 	EndRem
-    Method initWithSampler:ChipmunkAbstractTileCache(sampler:ChipmunkAbstractSampler, space:CPSpace, tileSize:Double, samplesPerTile:Size_T, cacheSize:Size_T)
+    Method initWithSampler:ChipmunkAbstractTileCache(sampler:ChipmunkAbstractSampler, space:CPSpace, tileSize:Double, samplesPerTile:Size_T, cacheSize:Int)
 			Self.sampler = sampler
 			Self.space = space
 			
@@ -961,7 +931,7 @@ Type ChipmunkAbstractTileCache Extends CPObject
 			Local staticBody:CPBody = New CPBody.Create(INFINITY, INFINITY)
 			Local shapes:TList = New TList
 			
-			For Local i:uInt = 0 Until Set.Count()
+			For Local i:UInt = 0 Until Set.Count()
 				Local simplified:CPPolyline = simplify(Set.lineatindex(i))
 				
 				Local tmp:CPVect[] = simplified.verts()
@@ -971,19 +941,21 @@ Type ChipmunkAbstractTileCache Extends CPObject
 					space.AddShape(segment)
 				Next
 				
-				cpPolylineFree(simplified.cpObjectPtr)
+				cpPolylineFree(simplified.line)
 			Next
 			
 			tile.shapes = shapes
 		Else
 			tile.shapes = Null
 		End If
-		For Local i:uInt = 0 Until Set.Count()
-			Local tmp:Size_T ptr = Size_T Ptr(Set.lines + 8)[i]
-			cpPolylineFree(Byte ptr(tmp))
-			cpunbind(Byte ptr(tmp))
+		For Local i:UInt = 0 Until Set.Count()
+			Local offset:Byte Ptr = (Set.lines + 8)
+			Local tmp:Byte Ptr = Byte Ptr Ptr(offset)[i]
+			cpPolylineFree(tmp)
+			cpunbind(Byte Ptr(tmp))
 		Next
 		cpPolylineSetFree(Set.lines, False)
+		Set.lines = Null
 		Set = Null
 		tile.dirty = False
 	End Method
@@ -991,7 +963,7 @@ Type ChipmunkAbstractTileCache Extends CPObject
 	Method GetTileAt:ChipmunkCachedTile(Index:CPSpatialIndex, i:Int, j:Int, Size:Double, offset:CPVect)
 		Local Point:CPVect = Vec2((i + 0.5) * Size + offset.x, (j + 0.5) * Size + offset.y)
 		Local tile:ChipmunkCachedTile = Null
-		Index.Query(Point, New CPBB.NewForCircle(Point, 0.0), ChipmunkCachedTile.ChipmunkCachedTileQuery, VarPtr tile)
+		Index.Query(Point, New CPBB.NewForCircle(Point, 0.0), ChipmunkCachedTile.ChipmunkCachedTileQuery, Varptr tile)
 		Return tile
 	End Method
 
@@ -1077,11 +1049,7 @@ Type ChipmunkAbstractTileCache Extends CPObject
 					tile = New ChipmunkCachedTile.initWithBB(BBForTileRect(New TileRect(i, j, i + 1, j + 1), Size, offset))
 					tile.dirty = True
 					
-?Linux Or MacOs Or ios
-					Local tmp:Int = HandleFromObject(tile)
-?Not (Linux Or MacOs Or ios)
-					Local tmp:uInt = HandleFromObject(tile)
-?
+					Local tmp:Size_T = HandleFromObject(tile)
 					tileIndex.Insert(tile, tmp)
 					Release tmp
 					tileCount:+1
@@ -1101,11 +1069,7 @@ Type ChipmunkAbstractTileCache Extends CPObject
 		' Remove tiles used the longest ago If over the cache Count;
 		Local removeCount:Int = tileCount - cacheSize
 		For Local i:Int = 0 Until removeCount
-?Linux Or MacOs Or ios
-			Local tmp:Int = HandleFromObject(cachetail)
-?Not (Linux Or MacOs Or ios)
-			Local tmp:uInt = HandleFromObject(cachetail)
-?
+			Local tmp:Size_T = HandleFromObject(cachetail)
 			tileIndex.Remove(cacheTail, tmp)
 			Release(tmp)
 			removeShapesForTile(cacheTail)
@@ -1123,7 +1087,7 @@ Type ChipmunkAbstractTileCache Extends CPObject
 	EndRem
     Method simplify:CPPolyline(polyline:CPPolyline)
 		Throw "You must override simplify in a subclass"
-        Return polyline.SimplifyCurves(2.0)
+        Return polyline.simplifyCurves(2.0)
     End Method
 
 	Rem
@@ -1168,14 +1132,14 @@ Type ChipmunkBasicTileCache Extends ChipmunkAbstractTileCache
 	Rem
 	bbdoc: Collision filter of the generated segments.
 	EndRem
-    Field segmentFilter:uint
+    Field segmentFilter:UInt
 
 	Rem
 	bbdoc: Collision type of the generated segments.
 	EndRem
-    Field segmentCollisionType:size_t
+    Field segmentCollisionType:Size_T
 
-	Method initWithSampler:ChipmunkAbstracttilecache(sampler:ChipmunkAbstractSampler, space:CPSpace, tileSize:Double, samplesPerTile:Size_T, cacheSize:Size_T)
+	Method initWithSampler:ChipmunkAbstractTileCache(sampler:ChipmunkAbstractSampler, space:CPSpace, tileSize:Double, samplesPerTile:Size_T, cacheSize:Int)
 			Self.simplifyThreshold = 2.0
 			
 			Self.segmentRadius = 0.0
@@ -1191,7 +1155,7 @@ Type ChipmunkBasicTileCache Extends ChipmunkAbstractTileCache
 	End Method
 
 	Method simplify:CPPolyline(polyline:CPPolyline)
-		Return polyline.SimplifyCurves(simplifyThreshold)
+		Return polyline.simplifyCurves(simplifyThreshold)
 	End Method
 
 	Method makeSegmentFor:CPSegmentShape(staticBody:CPBody, a:CPVect, b:CPVect)

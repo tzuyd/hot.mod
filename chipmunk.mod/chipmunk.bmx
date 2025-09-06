@@ -37,6 +37,7 @@ ModuleInfo "History: 1.08"
 ModuleInfo "History: Chipmunk Pro update!  Sort of"
 ModuleInfo "History: Fixed:      CPContact.SetR2 (was setting R1 instead)"
 ModuleInfo "History: Fixed:      beginFunc, postSolveFunc and separateFunc (Shape data set incorrectly)"
+ModuleInfo "History: Fixed:      cpBools incorrectly passed as Int, changing to Byte fixes 64 bit builds"
 ModuleInfo "History: NEW:        CPVect.DistSq :Double()"
 ModuleInfo "History: NEW:        CPBB.NewForCircle :CPBB()"
 ModuleInfo "History: NEW:        CPSpace.RemoveShape ()"
@@ -522,7 +523,7 @@ Type CPBody Extends CPObject
 	Rem
 	bbdoc: Returns true if body is sleeping.
 	end rem
-	Method IsSleeping:Int()
+	Method IsSleeping:Byte()
 		Return cpBodyIsSleeping(cpObjectPtr)
 	End Method
 
@@ -615,6 +616,9 @@ Type CPSpace Extends CPObject
 		If ENABLE_HASTY
 		?Not ios
 			cpObjectPtr = bmx_cphastyspace_new(Self)
+		?ios
+			cpObjectPtr = bmx_cpspace_create(Self)
+			DebugLog "Hasty Space not supported on ios"
 		?
 		Else
 			cpObjectPtr = bmx_cpspace_create(Self)
@@ -1066,6 +1070,8 @@ separateFunc(shapeA:CPShape, shapeB:CPShape, contacts:CPContact[], normalCoefici
 		If ENABLE_HASTY
 		?Not ios
 			cpHastySpaceStep(cpObjectPtr, dt)
+		?ios
+			cpSpaceStep(cpObjectPtr, dt)
 		?
 		Else
 			cpSpaceStep(cpObjectPtr, dt)
@@ -1243,6 +1249,8 @@ End Method
 			If ENABLE_HASTY
 			?Not ios
 				cpHastySpaceFree(cpObjectPtr)
+			?ios
+				cpSpaceFree(cpObjectPtr)
 			?
 			Else
 				cpSpaceFree(cpObjectPtr)
@@ -1368,6 +1376,9 @@ Type CPVect
 	bbdoc: X
 	End Rem
 	Method GetX:Double()
+        If vecPtr Then
+            x = bmx_cpvect_getx(vecPtr)
+        End If
 		Return x
 	End Method
 	
@@ -1375,6 +1386,9 @@ Type CPVect
 	bbdoc: Y
 	End Rem
 	Method GetY:Double()
+        If vecPtr Then
+            y = bmx_cpvect_gety(vecPtr)
+        End If
 		Return y
 	End Method
 	
@@ -1511,7 +1525,7 @@ Type CPVect
 	Rem
 	bbdoc: Returns true if the distance between @Self and @v2 is less than @dist.
 	End Rem
-	Method Near:Int(v2:CPVect, dist:Double)
+	Method Near:Byte(v2:CPVect, dist:Double)
 		Return bmx_cpvect_near(vecPtr, v2.vecPtr, dist)
 	End Method
 
@@ -1646,12 +1660,7 @@ Type CPShape Extends CPObject
 
 	Field static:Int = False
 
-    ' Define a type alias for cpHashValue using a platform-specific type
-?Linux Or MacOs Or ios
-    Field hashid:Int ' Use the platform-specific type for IntPtr
-?Not (Linux Or MacOs Or ios)
-    Field hashid:UInt ' Use the platform-specific type for UIntPtr
-?
+    Field hashid:Size_T
 
 	Method _Update()
 		If cpObjectPtr
@@ -1727,7 +1736,7 @@ Type CPShape Extends CPObject
 	about: Shapes in the same non-zero group do Not generate collisions. Useful when creating an Object out of many
 	shapes that you don't want To Self collide. Defaults To 0.
 	End Rem
-	Method SetGroup(group:Int)
+	Method SetGroup(group:ULong)
 		bmx_cpshape_setgroup(cpObjectPtr, group)
 	End Method
 
@@ -1738,7 +1747,7 @@ Type CPShape Extends CPObject
 	By default, a shape occupies all 32 bit-planes.
 	</p>
 	End Rem
-	Method SetLayers(layers:Int)
+	Method SetLayers(layers:ULong)
 		bmx_cpshape_setlayers(cpObjectPtr, layers)
 	End Method
 	
@@ -1784,15 +1793,15 @@ Type CPShape Extends CPObject
 	bbdoc: An Int value if this shape is a sensor or not.
 	about: Sensors only call collision callbacks, and never generate real collisions.
 	end rem
-	Method GetSensor:Int()
-		Return cpShapeGetSensor(cpObjectPtr)
+	Method GetSensor:Byte()
+		Return cpShapeGetSensor(cpObjectPtr)<>0
 	End Method
 	
 	Rem
 	bbdoc: An Int value if this shape is a sensor or not.
 	about: Sensors only call collision callbacks, and never generate real collisions.
 	End Rem
-	Method SetSensor(Value:Int)
+	Method SetSensor(Value:Byte)
 		cpShapeSetSensor(cpObjectPtr, Value)
 	End Method
 	
@@ -2019,7 +2028,7 @@ Type CPSpatialIndex Extends cpObject
 		Else
 			cpobjectptr = cpSpaceHashNew(celldim, cells, bbfunc, Null)
 		End If
-		Return Self'Bind(cpobjectptr)
+		Return Self	'Bind(cpobjectptr)
 	End Method
 
 	Function _create:CPSpatialIndex(cpObjectPtr:Byte Ptr)
@@ -2067,11 +2076,7 @@ Type CPSpatialIndex Extends cpObject
 	bbdoc: Add an object to a spatial index.
 	about: Most spatial indexes use hashed storage, so you must provide a hash value too.
 	End Rem
-?Linux Or MacOs Or ios
-	Method Insert(obj:Object, hashid:Int)
-?Not (Linux Or MacOs Or ios)
-	Method Insert(obj:Object, hashid:UInt)
-?
+	Method Insert(obj:Object, hashid:Size_T)
 		bmx_cpspatialindex_insert(cpObjectPtr, obj, hashid)
 	End Method
 	
@@ -2079,11 +2084,7 @@ Type CPSpatialIndex Extends cpObject
 	bbdoc: Remove an object from a spatial index.
 	about: Most spatial indexes use hashed storage, so you must provide a hash value too.
 	End Rem
-?Linux Or MacOs Or ios
-	Method Remove(obj:Object, hashid:Int)
-?Not (Linux Or MacOs Or ios)
-	Method Remove(obj:Object, hashid:UInt)
-?
+	Method Remove(obj:Object, hashid:Size_T)
 		bmx_cpspatialindex_remove(cpObjectPtr, obj, hashid)
 	End Method
 	

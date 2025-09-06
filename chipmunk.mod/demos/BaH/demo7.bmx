@@ -36,7 +36,7 @@ End
 
 
 Function Update(ticks:Int)
-	Local steps:Int = 5	' 3
+	Local steps:Int = 3
 	Local dt:Float = 1.0/60.0/steps
 	
 	For Local i:Int = 0 Until steps
